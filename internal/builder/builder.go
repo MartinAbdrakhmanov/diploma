@@ -7,7 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/go-faster/errors"
 )
 
 // BuildFunction принимает map файлов и собирает Docker image.
@@ -22,7 +25,6 @@ func Build(ctx context.Context, name string, files map[string][]byte) (string, e
 	// tag := hex.EncodeToString(h.Sum(nil))[:12]
 	tag := hex.EncodeToString([]byte(time.Now().String()))[:12]
 	image := fmt.Sprintf("mini-faas/%s:%s", name, tag)
-
 	// Создаём временную папку build context
 	dir, err := prepareBuildContext(files)
 	if err != nil {
@@ -84,21 +86,25 @@ func dockerBuild(ctx context.Context, dir, image string) error {
 }
 
 func importToContainerd(image string) error {
+	safeName := strings.ReplaceAll(image, "/", "_")
+	safeName = strings.ReplaceAll(safeName, ":", "_")
+
+	tarPath := fmt.Sprintf("/tmp/%s.tar", safeName)
+
 	cmd := exec.Command(
-		"sh", "-c",
-		fmt.Sprintf("docker save %s -o /tmp/%[1]s.tar", image),
+		"docker", "save",
+		"-o", tarPath,
+		image,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
-	if err != nil {
-		return err
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "docker save failed")
 	}
 
 	cmd = exec.Command(
-		"sh", "-c",
-		fmt.Sprintf("sudo ctr images import /tmp/%s.tar", image),
+		"sudo", "ctr", "images", "import", tarPath,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

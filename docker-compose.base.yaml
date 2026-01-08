@@ -1,6 +1,6 @@
 
 services:
-  postgres_pvz:
+  postgres_minifaas:
     image: postgres:17.5
     environment:
       POSTGRES_USER: ${POSTGRES_USER}

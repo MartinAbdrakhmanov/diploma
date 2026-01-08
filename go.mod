@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	github.com/containerd/containerd v1.7.30
+	github.com/go-faster/errors v0.7.1
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e
 )

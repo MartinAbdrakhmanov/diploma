@@ -53,7 +53,7 @@ func Invoke(
 		containerd.WithNewSnapshot(snapshotID, image),
 		containerd.WithNewSpec(
 			oci.WithImageConfig(image),
-			oci.WithProcessArgs(fn.Args...),
+			// oci.WithProcessArgs(fn.Args...),
 		),
 	)
 	if err != nil {
