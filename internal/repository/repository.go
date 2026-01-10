@@ -5,22 +5,14 @@ import (
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/MartinAbdrakhmanov/diploma/pkg/storage"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/georgysavva/scany/v2/pgxscan"
 )
 
-type dbManager interface {
-	Exec(ctx context.Context, md storage.Mode, query string, args ...any) (pgconn.CommandTag, error)
-	Query(ctx context.Context, md storage.Mode, query string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, md storage.Mode, query string, args ...any) pgx.Row
-	WithinTransaction(ctx context.Context, md storage.Mode, tFunc func(ctx context.Context) error) error
-}
-
 type Repository struct {
-	db dbManager
+	db *storage.Client
 }
 
-func New(dbManager dbManager) *Repository {
+func New(dbManager *storage.Client) *Repository {
 	return &Repository{
 		db: dbManager,
 	}
@@ -35,7 +27,7 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
         updated_at = CURRENT_TIMESTAMP
 	RETURNING id;
 	`
-	err = r.db.QueryRow(ctx, storage.WriteMode, query,
+	err = r.db.Write(ctx).QueryRow(ctx, query,
 		function.UserId,
 		function.Name,
 		function.Runtime,
@@ -46,8 +38,23 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
 	).Scan(&id)
 
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	return id, nil
+}
+func (r *Repository) GetFunction(ctx context.Context, id string) (function ds.Function, err error) {
+	query := `
+	SELECT id, user_id, "name", runtime, wasm_path, "image", "timeout", max_memory
+	FROM functions
+	WHERE id = $1
+	`
+	// err = r.db.QueryRow(ctx, storage.ReadMode, query, id).Scan(&function)
+	err = pgxscan.Get(ctx, r.db.Read(ctx), &function, query, id)
+
+	if err != nil {
+		return ds.Function{}, err
+	}
+
+	return function, nil
 }

@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS functions (
     wasm_path TEXT,  
     "image" TEXT NOT NULL,
     "timeout" INT DEFAULT 2, -- seconds
-    max_memory BIGINT DEFAULT 0,   -- 0 = unspecified, bytes
+    max_memory INT DEFAULT 0,   -- 0 = unspecified, bytes
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_called_at TIMESTAMPTZ
+    last_called_at TIMESTAMPTZ,
     UNIQUE (user_id, "name")
 );
 -- +goose StatementEnd

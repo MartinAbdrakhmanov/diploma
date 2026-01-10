@@ -9,6 +9,7 @@ import (
 
 type repository interface {
 	SaveFunction(ctx context.Context, function ds.Function) (id string, err error)
+	GetFunction(ctx context.Context, id string) (function ds.Function, err error)
 }
 
 type builder interface {
@@ -50,4 +51,8 @@ func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err
 
 	return id, nil
 
+}
+
+func (r *Registry) Get(ctx context.Context, id string) (ds.Function, error) {
+	return r.repo.GetFunction(ctx, id)
 }

@@ -1,15 +1,11 @@
 package ds
 
-import (
-	"time"
-)
-
 type Entry struct {
 	UserId    string
 	Name      string
 	Files     map[string][]byte
 	Runtime   string
-	Timeout   time.Time
+	Timeout   int
 	MaxMemory int64
 }
 

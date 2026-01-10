@@ -6,6 +6,8 @@ import (
 	"log"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/container"
+	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
+	"github.com/google/uuid"
 )
 
 const (
@@ -34,19 +36,25 @@ func main() {
 		"main.go": []byte(testMainGo),
 		"go.mod":  []byte(testGoMod),
 	}
-
 	ctx := context.Background()
 	closers := make([]func(), 0, 2)
 	cont := container.New(closers)
 	defer cont.Close()
-	builder, err := cont.GetBuilderSvc(ctx)
+	registry, err := cont.GetFunctionRegistry(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	image, err := builder.Build(ctx, "echo", files)
-	if err != nil {
-		log.Fatal(err)
-	}
+	userID := uuid.New()
 
-	fmt.Println("Built image:", image)
+	id, err := registry.Register(ctx, ds.Entry{UserId: userID.String(), Name: "test-registry-123", Files: files, Runtime: ds.DockerRuntime})
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(id)
+
+	fn, err := registry.Get(ctx, id)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(fn)
 }

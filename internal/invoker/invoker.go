@@ -14,25 +14,37 @@ import (
 	"github.com/containerd/containerd/oci"
 )
 
-func Invoke(
+type Invoker struct {
+	client *containerd.Client
+}
+
+func New(
+	client *containerd.Client,
+) *Invoker {
+	return &Invoker{
+		client: client,
+	}
+}
+
+func (i *Invoker) Invoke(
 	ctx context.Context,
 	fn ds.Function,
 	input []byte,
 	timeout time.Duration,
 ) ([]byte, []byte, error) {
 
-	client, err := containerd.New("/run/containerd/containerd.sock")
-	if err != nil {
-		return nil, nil, err
-	}
-	defer client.Close()
+	// client, err := containerd.New("/run/containerd/containerd.sock")
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
+	// defer client.Close()
 
 	ctx = namespaces.WithNamespace(ctx, "default")
 
 	// 1. Pull image (idempotent)
-	image, err := client.GetImage(ctx, fn.Image)
+	image, err := i.client.GetImage(ctx, fn.Image)
 	if err != nil {
-		image, err = client.Pull(
+		image, err = i.client.Pull(
 			ctx,
 			fn.Image,
 			containerd.WithPullUnpack,
@@ -46,7 +58,7 @@ func Invoke(
 	snapshotID := fn.ID + "-snap-" + time.Now().Format("150405.000")
 
 	// 3. Create container
-	container, err := client.NewContainer(
+	container, err := i.client.NewContainer(
 		ctx,
 		fn.ID,
 		containerd.WithImage(image),
@@ -74,6 +86,7 @@ func Invoke(
 	if err != nil {
 		return nil, nil, err
 	}
+	defer task.Delete(ctx, containerd.WithProcessKill)
 
 	// 5. Start
 	if err := task.Start(ctx); err != nil {
@@ -89,6 +102,9 @@ func Invoke(
 		return nil, nil, err
 	}
 
+	if timeout == 0 {
+		timeout = ds.DefaultTimeout
+	}
 	select {
 	case status := <-waitC:
 		if status.ExitCode() != 0 {
@@ -100,9 +116,6 @@ func Invoke(
 		return stdout.Bytes(), stderr.Bytes(),
 			fmt.Errorf("function timeout")
 	}
-
-	// 8. Cleanup task
-	task.Delete(ctx)
 
 	return stdout.Bytes(), stderr.Bytes(), nil
 }

@@ -13,9 +13,16 @@ import (
 	"github.com/go-faster/errors"
 )
 
+type Builder struct {
+}
+
+func New() *Builder {
+	return &Builder{}
+}
+
 // BuildFunction принимает map файлов и собирает Docker image.
 // files: ключ — относительный путь (например "main.go", "go.mod"), значение — содержимое файла
-func Build(ctx context.Context, name string, files map[string][]byte) (string, error) {
+func (b *Builder) Build(ctx context.Context, name string, files map[string][]byte) (string, error) {
 	// 1) Создаём детерминированный тег через sha256 содержимого
 	// h := sha256.New()
 	// for fname, content := range files {
@@ -40,6 +47,8 @@ func Build(ctx context.Context, name string, files map[string][]byte) (string, e
 	if err := importToContainerd(image); err != nil {
 		return "", fmt.Errorf("push to containerd failed: %w", err)
 	}
+
+	image = "docker.io/" + image
 
 	return image, nil
 }
