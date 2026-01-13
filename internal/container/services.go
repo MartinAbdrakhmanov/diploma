@@ -9,6 +9,8 @@ import (
 	"github.com/MartinAbdrakhmanov/diploma/internal/invoker"
 	"github.com/containerd/containerd"
 	"github.com/go-faster/errors"
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 const (
@@ -41,7 +43,14 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 		client.Close()
 	})
 
-	invoker := invoker.New(client)
+	r := wazero.NewRuntime(ctx)
+	c.closers = append(c.closers, func() {
+		r.Close(ctx)
+	})
+
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
+
+	invoker := invoker.New(client, r)
 	c.invokerSvc = invoker
 
 	return c.invokerSvc, nil

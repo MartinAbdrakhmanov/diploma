@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS functions (
     "name" TEXT NOT NULL,
     runtime runtime_type NOT NULL,
     wasm_path TEXT,  
-    "image" TEXT NOT NULL,
+    "image" TEXT,
     "timeout" INT DEFAULT 2, -- seconds
     max_memory INT DEFAULT 0,   -- 0 = unspecified, bytes
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

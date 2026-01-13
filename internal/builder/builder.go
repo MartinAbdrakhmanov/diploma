@@ -2,14 +2,8 @@ package builder
 
 import (
 	"context"
-	"encoding/hex"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"time"
 
+	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/go-faster/errors"
 )
 
@@ -20,115 +14,25 @@ func New() *Builder {
 	return &Builder{}
 }
 
-// BuildFunction принимает map файлов и собирает Docker image.
-// files: ключ — относительный путь (например "main.go", "go.mod"), значение — содержимое файла
-func (b *Builder) Build(ctx context.Context, name string, files map[string][]byte) (string, error) {
-	// 1) Создаём детерминированный тег через sha256 содержимого
-	// h := sha256.New()
-	// for fname, content := range files {
-	// 	io.WriteString(h, fname)
-	// 	h.Write(content)
-	// }
-	// tag := hex.EncodeToString(h.Sum(nil))[:12]
-	tag := hex.EncodeToString([]byte(time.Now().String()))[:12]
-	image := fmt.Sprintf("mini-faas/%s:%s", name, tag)
-	// Создаём временную папку build context
-	dir, err := prepareBuildContext(files)
-	if err != nil {
-		return "", err
-	}
+func (b *Builder) Build(ctx context.Context, entry ds.Entry) (ds.Function, error) {
+	function := entry.ToFunction()
 
-	defer os.RemoveAll(dir)
-
-	if err := dockerBuild(ctx, dir, image); err != nil {
-		return "", fmt.Errorf("docker build failed: %w", err)
-	}
-
-	if err := importToContainerd(image); err != nil {
-		return "", fmt.Errorf("push to containerd failed: %w", err)
-	}
-
-	image = "docker.io/" + image
-
-	return image, nil
-}
-
-func prepareBuildContext(files map[string][]byte) (string, error) {
-	// 2) Создаём временную папку build context
-	dir, err := os.MkdirTemp("", "mini-faas-build-*")
-	if err != nil {
-		return "", err
-	}
-
-	// 3) Записываем все файлы в build context
-	for fname, content := range files {
-		target := filepath.Join(dir, fname)
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return "", err
+	switch entry.Runtime {
+	case ds.DockerRuntime:
+		image, err := b.buildDocker(ctx, entry.Name, entry.Files)
+		if err != nil {
+			return ds.Function{}, errors.Wrapf(err, "Build error")
 		}
-		if err := os.WriteFile(target, content, 0644); err != nil {
-			return "", err
+		function.Image = image
+	case ds.WasmRuntime:
+		wasmPath, err := b.buildWasm(ctx, entry.Name, entry.Files)
+		if err != nil {
+			return ds.Function{}, errors.Wrapf(err, "Build error")
 		}
+		function.WasmPath = wasmPath
+	default:
+		return ds.Function{}, ds.ErrInvalidRuntime
 	}
 
-	// 4) Проверяем, есть ли Dockerfile, если нет — пишем дефолтный
-	dockerfilePath := filepath.Join(dir, "Dockerfile")
-	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		if err := os.WriteFile(dockerfilePath, []byte(defaultGoDockerfile), 0644); err != nil {
-			return "", err
-		}
-	}
-
-	return dir, nil
+	return function, nil
 }
-
-func dockerBuild(ctx context.Context, dir, image string) error {
-	cmd := exec.CommandContext(ctx,
-		"docker", "build",
-		"-t", image,
-		dir,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-func importToContainerd(image string) error {
-	safeName := strings.ReplaceAll(image, "/", "_")
-	safeName = strings.ReplaceAll(safeName, ":", "_")
-
-	tarPath := fmt.Sprintf("/tmp/%s.tar", safeName)
-
-	cmd := exec.Command(
-		"docker", "save",
-		"-o", tarPath,
-		image,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "docker save failed")
-	}
-
-	cmd = exec.Command(
-		"sudo", "ctr", "images", "import", tarPath,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-// Default Dockerfile для Go функций
-const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
-WORKDIR /app
-COPY . .
-RUN go mod download && go build -o handler main.go
-
-FROM alpine:latest
-WORKDIR /app
-COPY --from=build /app/handler /handler
-ENTRYPOINT ["/handler"]
-`

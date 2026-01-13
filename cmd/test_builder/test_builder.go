@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/container"
+	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 )
 
 const (
@@ -43,7 +44,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	image, err := builder.Build(ctx, "echo", files)
+	entry := ds.Entry{
+		Name:  "echo",
+		Files: files,
+	}
+	image, err := builder.Build(ctx, entry)
 	if err != nil {
 		log.Fatal(err)
 	}

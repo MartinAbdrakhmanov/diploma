@@ -2,11 +2,17 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"os"
+
+	sdk "github.com/MartinAbdrakhmanov/go-sdk"
 )
 
+func Handler(req sdk.Request) sdk.Response {
+	return sdk.Response{
+		Status: 200,
+		Body:   fmt.Sprintf("test %s", req),
+	}
+}
+
 func main() {
-	data, _ := io.ReadAll(os.Stdin)
-	fmt.Printf("echo: %s", string(data))
+	sdk.Run(Handler)
 }

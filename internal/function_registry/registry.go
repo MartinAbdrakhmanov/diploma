@@ -13,7 +13,7 @@ type repository interface {
 }
 
 type builder interface {
-	Build(ctx context.Context, name string, files map[string][]byte) (string, error)
+	Build(ctx context.Context, entry ds.Entry) (ds.Function, error)
 }
 
 type Registry struct {
@@ -29,28 +29,17 @@ func New(repo repository, builder builder) *Registry {
 }
 
 func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err error) {
-	function := entry.ToFunction()
-
-	switch entry.Runtime {
-	case ds.DockerRuntime:
-		image, err := r.builder.Build(ctx, entry.Name, entry.Files)
-		if err != nil {
-			return "", errors.Wrapf(err, "Build error")
-		}
-		function.Image = image
-	case ds.WasmRuntime:
-		// build wasm
-	default:
-		return "", ds.ErrInvalidRuntime
+	function, err := r.builder.Build(ctx, entry)
+	if err != nil {
+		return "", errors.Wrap(err, "Register Build error")
 	}
 
 	id, err = r.repo.SaveFunction(ctx, function)
 	if err != nil {
-		return "", errors.Wrapf(err, "Save function error")
+		return "", errors.Wrap(err, "Save function error")
 	}
 
 	return id, nil
-
 }
 
 func (r *Registry) Get(ctx context.Context, id string) (ds.Function, error) {
