@@ -50,7 +50,12 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)
 
-	invoker := invoker.New(client, r)
+	repo, err := c.GetRepo(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetFunctionRegistry GetRepo err")
+	}
+
+	invoker := invoker.New(client, r, repo)
 	c.invokerSvc = invoker
 
 	return c.invokerSvc, nil

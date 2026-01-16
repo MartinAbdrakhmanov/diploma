@@ -58,3 +58,23 @@ func (r *Repository) GetFunction(ctx context.Context, id string) (function ds.Fu
 
 	return function, nil
 }
+
+func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
+	query := `
+	INSERT INTO execution_logs (function_id, started_at, finished_at, duration_ms, status, exit_code, error_code, error_message)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	_, err := r.db.Write(ctx).Query(ctx, query,
+		log.FunctionID,
+		log.StartedAt,
+		log.FinishedAt,
+		log.DurationMs,
+		log.Status,
+		log.ExitCode,
+		log.ErrorCode,
+		log.ErrorMessage,
+	)
+
+	return err
+}

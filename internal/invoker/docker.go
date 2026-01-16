@@ -19,7 +19,12 @@ func (i *Invoker) invokeDocker(
 	fn ds.Function,
 	input []byte,
 	timeout time.Duration,
-) ([]byte, []byte, error) {
+) ([]byte, []byte, error, *ds.ExecLog) {
+	execLog := &ds.ExecLog{
+		FunctionID: fn.ID,
+		StartedAt:  time.Now(),
+		Status:     ds.StatusSuccess,
+	}
 
 	ctx = namespaces.WithNamespace(ctx, "default")
 
@@ -32,7 +37,7 @@ func (i *Invoker) invokeDocker(
 			containerd.WithPullUnpack,
 		)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, err, nil
 		}
 	}
 
@@ -51,7 +56,7 @@ func (i *Invoker) invokeDocker(
 		),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, nil
 	}
 	defer container.Delete(ctx, containerd.WithSnapshotCleanup)
 
@@ -66,13 +71,13 @@ func (i *Invoker) invokeDocker(
 		),
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, nil
 	}
 	defer task.Delete(ctx, containerd.WithProcessKill)
 
 	// 5. Start
 	if err := task.Start(ctx); err != nil {
-		return nil, nil, err
+		return nil, nil, err, nil
 	}
 
 	// 6. Close stdin (EOF)
@@ -81,23 +86,34 @@ func (i *Invoker) invokeDocker(
 	// 7. Wait with timeout
 	waitC, err := task.Wait(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err, nil
 	}
 
 	if timeout == 0 {
 		timeout = ds.DefaultTimeout
 	}
+
+	var (
+		execErr error
+	)
 	select {
 	case status := <-waitC:
 		if status.ExitCode() != 0 {
-			return stdout.Bytes(), stderr.Bytes(),
-				fmt.Errorf("non-zero exit code: %d", status.ExitCode())
+			execLog.ExitCode = status.ExitCode()
+
+			execErr = fmt.Errorf("non-zero exit code: %d", status.ExitCode())
+			execLog.ErrorMessage = execErr.Error()
+
+			execLog.Status = ds.StatusError
 		}
 	case <-time.After(timeout):
 		task.Kill(ctx, syscall.SIGKILL)
-		return stdout.Bytes(), stderr.Bytes(),
-			fmt.Errorf("function timeout")
+		execErr = fmt.Errorf("function timeout")
+		execLog.ErrorMessage = execErr.Error()
+		execLog.Status = ds.StatusTimeout
 	}
+	execLog.FinishedAt = time.Now()
+	execLog.DurationMs = execLog.FinishedAt.Sub(execLog.StartedAt).Milliseconds()
 
-	return stdout.Bytes(), stderr.Bytes(), nil
+	return stdout.Bytes(), stderr.Bytes(), execErr, execLog
 }

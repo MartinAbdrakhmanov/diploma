@@ -2,6 +2,7 @@ package invoker
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
@@ -9,18 +10,25 @@ import (
 	"github.com/tetratelabs/wazero"
 )
 
+type repository interface {
+	SaveLog(ctx context.Context, log ds.ExecLog) error
+}
+
 type Invoker struct {
 	client *containerd.Client
 	r      wazero.Runtime
+	repo   repository
 }
 
 func New(
 	client *containerd.Client,
 	r wazero.Runtime,
+	repo repository,
 ) *Invoker {
 	return &Invoker{
 		client: client,
 		r:      r,
+		repo:   repo,
 	}
 }
 
@@ -29,14 +37,22 @@ func (i *Invoker) Invoke(
 	fn ds.Function,
 	input []byte,
 	timeout time.Duration,
-) ([]byte, []byte, error) {
+) (stdout []byte, stderr []byte, err error) {
+
+	var execLog *ds.ExecLog
 
 	switch fn.Runtime {
 	case ds.DockerRuntime:
-		return i.invokeDocker(ctx, fn, input, timeout)
+		stdout, stderr, err, execLog = i.invokeDocker(ctx, fn, input, timeout)
 	case ds.WasmRuntime:
-		return i.invokeWasm(ctx, fn, input, timeout)
+		stdout, stderr, err, execLog = i.invokeWasm(ctx, fn, input, timeout)
+	default:
+		return nil, nil, ds.ErrInvalidRuntime
 	}
 
-	return nil, nil, ds.ErrInvalidRuntime
+	if err := i.repo.SaveLog(ctx, *execLog); err != nil {
+		log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
+	}
+
+	return stdout, stderr, err
 }

@@ -16,7 +16,13 @@ func (i *Invoker) invokeWasm(
 	fn ds.Function,
 	input []byte,
 	timeout time.Duration,
-) ([]byte, []byte, error) {
+) ([]byte, []byte, error, *ds.ExecLog) {
+
+	execLog := &ds.ExecLog{
+		FunctionID: fn.ID,
+		StartedAt:  time.Now(),
+		Status:     ds.StatusSuccess,
+	}
 	wasmBytes, _ := os.ReadFile(fn.WasmPath)
 
 	stdout := &bytes.Buffer{}
@@ -37,14 +43,20 @@ func (i *Invoker) invokeWasm(
 			WithStdout(stdout).
 			WithStderr(stderr),
 	)
-
+	execLog.FinishedAt = time.Now()
+	execLog.DurationMs = execLog.FinishedAt.Sub(execLog.StartedAt).Milliseconds()
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
+			execLog.Status = ds.StatusTimeout
+			execLog.ErrorMessage = "function timeout" // TO DO fix
 			return stdout.Bytes(), stderr.Bytes(),
-				fmt.Errorf("function timeout")
+				fmt.Errorf("function timeout"), execLog
 		}
-		return stdout.Bytes(), stderr.Bytes(), err
+
+		execLog.Status = ds.StatusError
+		execLog.ErrorMessage = err.Error()
+		return stdout.Bytes(), stderr.Bytes(), err, execLog
 	}
 
-	return stdout.Bytes(), stderr.Bytes(), nil
+	return stdout.Bytes(), stderr.Bytes(), nil, execLog
 }
