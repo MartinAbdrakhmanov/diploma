@@ -113,7 +113,7 @@ func (i *Invoker) invokeDocker(
 		execLog.Status = ds.StatusTimeout
 	}
 	execLog.FinishedAt = time.Now()
-	execLog.DurationMs = execLog.FinishedAt.Sub(execLog.StartedAt).Milliseconds()
+	execLog.DurationMs = time.Since(execLog.StartedAt).Milliseconds()
 
 	return stdout.Bytes(), stderr.Bytes(), execErr, execLog
 }

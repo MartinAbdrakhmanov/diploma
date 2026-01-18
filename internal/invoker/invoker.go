@@ -15,9 +15,10 @@ type repository interface {
 }
 
 type Invoker struct {
-	client *containerd.Client
-	r      wazero.Runtime
-	repo   repository
+	client    *containerd.Client
+	r         wazero.Runtime
+	repo      repository
+	wasmCache *WasmCache
 }
 
 func New(
@@ -26,9 +27,10 @@ func New(
 	repo repository,
 ) *Invoker {
 	return &Invoker{
-		client: client,
-		r:      r,
-		repo:   repo,
+		client:    client,
+		r:         r,
+		repo:      repo,
+		wasmCache: NewWasmCache(),
 	}
 }
 

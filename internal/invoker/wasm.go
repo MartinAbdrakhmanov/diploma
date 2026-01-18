@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
+	"log"
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
@@ -23,28 +23,42 @@ func (i *Invoker) invokeWasm(
 		StartedAt:  time.Now(),
 		Status:     ds.StatusSuccess,
 	}
-	wasmBytes, _ := os.ReadFile(fn.WasmPath)
-
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	getCompTime := time.Now()
+	compiled, err := i.wasmCache.GetOrCompile(ctx, i.r, fn)
+	if err != nil {
+		return nil, nil, err, nil
+	}
+	log.Printf("GetOrCompile duration %v", time.Since(getCompTime).Milliseconds())
 
 	if timeout == 0 {
 		timeout = ds.DefaultTimeout
 	}
 
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	_, err := i.r.InstantiateWithConfig(
-		ctx,
-		wasmBytes,
-		wazero.NewModuleConfig().
-			WithStdin(bytes.NewReader(input)).
-			WithStdout(stdout).
-			WithStderr(stderr),
-	)
+	// _, err := i.r.InstantiateWithConfig(
+	// 	ctx,
+	// 	wasmBytes,
+	// 	wazero.NewModuleConfig().
+	// 		WithStdin(bytes.NewReader(input)).
+	// 		WithStdout(stdout).
+	// 		WithStderr(stderr),
+	// )
+
+	initTime := time.Now()
+	_, err = i.r.InstantiateModule(ctx, compiled, wazero.NewModuleConfig().
+		WithStdin(bytes.NewReader(input)).
+		WithStdout(stdout).
+		WithStderr(stderr))
+
 	execLog.FinishedAt = time.Now()
-	execLog.DurationMs = execLog.FinishedAt.Sub(execLog.StartedAt).Milliseconds()
+	execLog.DurationMs = time.Since(execLog.StartedAt).Milliseconds()
+
+	log.Printf("InstantiateModule duration %v", time.Since(initTime).Milliseconds())
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			execLog.Status = ds.StatusTimeout
