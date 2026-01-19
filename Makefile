@@ -10,7 +10,6 @@ down:
 
 restart: down up
 
-
 #goose 
 goose-add:
 	goose -dir ./migrations postgres "$(DATABASE_DSN)" create $(NAME) sql
