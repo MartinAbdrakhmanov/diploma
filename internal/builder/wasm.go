@@ -35,20 +35,16 @@ func (b *Builder) buildWasm(ctx context.Context, name string, files map[string][
 
 	wasmPath := filepath.Join(dir, "handler.wasm")
 
-	// положить wasm куда-то (fs / db / registry)
 	return storeWasm(name, wasmPath)
 }
 
 func storeWasm(functionID string, wasmPath string) (string, error) {
-	// 1. Убедимся, что директория существует
 	if err := os.MkdirAll(wasmStoreDir, 0755); err != nil {
 		return "", fmt.Errorf("create wasm store dir: %w", err)
 	}
 
-	// 2. Итоговый путь
 	dstPath := filepath.Join(wasmStoreDir, functionID+".wasm")
 
-	// 3. Копируем файл
 	src, err := os.Open(wasmPath)
 	if err != nil {
 		return "", fmt.Errorf("open source wasm: %w", err)
@@ -65,7 +61,6 @@ func storeWasm(functionID string, wasmPath string) (string, error) {
 		return "", fmt.Errorf("copy wasm file: %w", err)
 	}
 
-	// 4. Выставим права (read-only достаточно)
 	if err := os.Chmod(dstPath, 0444); err != nil {
 		return "", fmt.Errorf("chmod wasm file: %w", err)
 	}

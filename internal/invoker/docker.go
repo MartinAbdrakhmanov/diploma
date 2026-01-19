@@ -28,7 +28,6 @@ func (i *Invoker) invokeDocker(
 
 	ctx = namespaces.WithNamespace(ctx, "default")
 
-	// 1. Pull image (idempotent)
 	image, err := i.client.GetImage(ctx, fn.Image)
 	if err != nil {
 		image, err = i.client.Pull(
@@ -41,10 +40,8 @@ func (i *Invoker) invokeDocker(
 		}
 	}
 
-	// 2. Unique snapshot per invocation
 	snapshotID := fn.ID + "-snap-" + time.Now().Format("150405.000")
 
-	// 3. Create container
 	container, err := i.client.NewContainer(
 		ctx,
 		fn.ID,
@@ -60,7 +57,6 @@ func (i *Invoker) invokeDocker(
 	}
 	defer container.Delete(ctx, containerd.WithSnapshotCleanup)
 
-	// 4. IO
 	var stdout, stderr bytes.Buffer
 	stdin := bytes.NewReader(input)
 
@@ -75,15 +71,12 @@ func (i *Invoker) invokeDocker(
 	}
 	defer task.Delete(ctx, containerd.WithProcessKill)
 
-	// 5. Start
 	if err := task.Start(ctx); err != nil {
 		return nil, nil, err, nil
 	}
 
-	// 6. Close stdin (EOF)
 	task.CloseIO(ctx, containerd.WithStdinCloser)
 
-	// 7. Wait with timeout
 	waitC, err := task.Wait(ctx)
 	if err != nil {
 		return nil, nil, err, nil

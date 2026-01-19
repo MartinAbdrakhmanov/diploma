@@ -13,10 +13,8 @@ import (
 	"github.com/go-faster/errors"
 )
 
-// BuildFunction принимает map файлов и собирает Docker image.
-// files: ключ — относительный путь (например "main.go", "go.mod"), значение — содержимое файла
+// TODO change to local registry
 func (b *Builder) buildDocker(ctx context.Context, name string, files map[string][]byte) (string, error) {
-	// 1) Создаём детерминированный тег через sha256 содержимого
 	// h := sha256.New()
 	// for fname, content := range files {
 	// 	io.WriteString(h, fname)
@@ -25,7 +23,6 @@ func (b *Builder) buildDocker(ctx context.Context, name string, files map[string
 	// tag := hex.EncodeToString(h.Sum(nil))[:12]
 	tag := hex.EncodeToString([]byte(time.Now().String()))[:12]
 	image := fmt.Sprintf("mini-faas/%s:%s", name, tag)
-	// Создаём временную папку build context
 	dir, err := prepareBuildContext(files)
 	if err != nil {
 		return "", err
@@ -41,19 +38,19 @@ func (b *Builder) buildDocker(ctx context.Context, name string, files map[string
 		return "", fmt.Errorf("push to containerd failed: %w", err)
 	}
 
+	os.Remove(fmt.Sprintf("/tmp/%s.tar", strings.ReplaceAll(strings.ReplaceAll(image, "/", "_"), ":", "_")))
+
 	image = "docker.io/" + image
 
 	return image, nil
 }
 
 func prepareBuildContext(files map[string][]byte) (string, error) {
-	// 2) Создаём временную папку build context
 	dir, err := os.MkdirTemp("", "mini-faas-build-*")
 	if err != nil {
 		return "", err
 	}
 
-	// 3) Записываем все файлы в build context
 	for fname, content := range files {
 		target := filepath.Join(dir, fname)
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
@@ -64,7 +61,6 @@ func prepareBuildContext(files map[string][]byte) (string, error) {
 		}
 	}
 
-	// 4) Проверяем, есть ли Dockerfile, если нет — пишем дефолтный
 	dockerfilePath := filepath.Join(dir, "Dockerfile")
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 		if err := os.WriteFile(dockerfilePath, []byte(defaultGoDockerfile), 0644); err != nil {
@@ -114,7 +110,6 @@ func importToContainerd(image string) error {
 	return cmd.Run()
 }
 
-// Default Dockerfile для Go функций
 const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
 WORKDIR /app
 COPY . .
