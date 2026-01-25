@@ -7,40 +7,33 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
-
-	"github.com/go-faster/errors"
 )
 
-// TODO change to local registry
 func (b *Builder) buildDocker(ctx context.Context, name string, files map[string][]byte) (string, error) {
 	// h := sha256.New()
 	// for fname, content := range files {
-	// 	io.WriteString(h, fname)
+	// 	h.Write([]byte(fname))
 	// 	h.Write(content)
 	// }
 	// tag := hex.EncodeToString(h.Sum(nil))[:12]
-	tag := hex.EncodeToString([]byte(time.Now().String()))[:12]
-	image := fmt.Sprintf("mini-faas/%s:%s", name, tag)
+	tag := hex.EncodeToString([]byte(time.Now().String()))[1:13]
+	registry := "localhost:5000" //move to env
+	image := fmt.Sprintf("%s/mini-faas/%s:%s", registry, name, tag)
+
 	dir, err := prepareBuildContext(files)
 	if err != nil {
 		return "", err
 	}
-
 	defer os.RemoveAll(dir)
 
 	if err := dockerBuild(ctx, dir, image); err != nil {
 		return "", fmt.Errorf("docker build failed: %w", err)
 	}
 
-	if err := importToContainerd(image); err != nil {
-		return "", fmt.Errorf("push to containerd failed: %w", err)
+	if err := pushToRegistry(ctx, image); err != nil {
+		return "", fmt.Errorf("docker push failed: %w", err)
 	}
-
-	os.Remove(fmt.Sprintf("/tmp/%s.tar", strings.ReplaceAll(strings.ReplaceAll(image, "/", "_"), ":", "_")))
-
-	image = "docker.io/" + image
 
 	return image, nil
 }
@@ -72,42 +65,20 @@ func prepareBuildContext(files map[string][]byte) (string, error) {
 }
 
 func dockerBuild(ctx context.Context, dir, image string) error {
-	cmd := exec.CommandContext(ctx,
-		"docker", "build",
-		"-t", image,
-		dir,
-	)
+	cmd := exec.CommandContext(ctx, "docker", "build", "-t", image, dir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	return cmd.Run()
 }
 
-func importToContainerd(image string) error {
-	safeName := strings.ReplaceAll(image, "/", "_")
-	safeName = strings.ReplaceAll(safeName, ":", "_")
-
-	tarPath := fmt.Sprintf("/tmp/%s.tar", safeName)
-
-	cmd := exec.Command(
-		"docker", "save",
-		"-o", tarPath,
-		image,
-	)
+func pushToRegistry(ctx context.Context, image string) error {
+	cmd := exec.CommandContext(ctx, "docker", "push", image)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
 	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "docker save failed")
+		return fmt.Errorf("docker push failed: %w", err)
 	}
-
-	cmd = exec.Command(
-		"sudo", "ctr", "images", "import", tarPath,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
+	return nil
 }
 
 const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
