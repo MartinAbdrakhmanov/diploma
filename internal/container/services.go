@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"time"
 
 	apigateway "github.com/MartinAbdrakhmanov/diploma/internal/api_gateway"
 	"github.com/MartinAbdrakhmanov/diploma/internal/builder"
@@ -9,13 +10,12 @@ import (
 	"github.com/MartinAbdrakhmanov/diploma/internal/invoker"
 	"github.com/containerd/containerd"
 	"github.com/go-faster/errors"
-	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 const (
 	containerdPath = "/run/containerd/containerd.sock"
-	baseURL        = "localhost" //???
+	baseURL        = "http://localhost:8080" //???
 )
 
 func (c *Container) GetBuilderSvc(ctx context.Context) (*builder.Builder, error) {
@@ -43,9 +43,14 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 		client.Close()
 	})
 
-	r := wazero.NewRuntime(ctx)
+	r, err := c.NewWasmRuntime(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "GetInvokerSvc NewWasmRuntime err")
+	}
 	c.closers = append(c.closers, func() {
-		r.Close(ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		r.Close(shutdownCtx)
 	})
 
 	wasi_snapshot_preview1.MustInstantiate(ctx, r)

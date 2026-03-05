@@ -1,3 +1,5 @@
 local
 test.txt
 test_files
+.env
+bin

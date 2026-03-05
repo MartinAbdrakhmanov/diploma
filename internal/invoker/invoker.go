@@ -52,8 +52,10 @@ func (i *Invoker) Invoke(
 		return nil, nil, ds.ErrInvalidRuntime
 	}
 
-	if err := i.repo.SaveLog(ctx, *execLog); err != nil {
-		log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
+	if execLog != nil {
+		if err := i.repo.SaveLog(ctx, *execLog); err != nil {
+			log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
+		}
 	}
 
 	return stdout, stderr, err

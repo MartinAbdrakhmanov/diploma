@@ -29,7 +29,10 @@ func main() {
 
 	closers := make([]func(), 0, 2)
 	cont := container.New(closers)
-	defer cont.Close()
+	defer func() {
+		cont.Close()
+		log.Println("All closers finished")
+	}()
 
 	errCh := make(chan error, 1)
 
@@ -38,10 +41,14 @@ func main() {
 	}()
 
 	select {
-	case <-ctx.Done():
-		fmt.Println("Context cancelled")
 	case err := <-errCh:
 		log.Println("Gateway exited:", err)
+
+	case <-ctx.Done():
+		fmt.Println("Context cancelled")
+
+		err := <-errCh
+		log.Println("Gateway stopped:", err)
 	}
 
 	fmt.Println("Shutdown complete")
@@ -67,9 +74,17 @@ func runGW(ctx context.Context, cont *container.Container) error {
 		log.Println("Shutting down HTTP server...")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Println("Shutdown error:", err)
+		}
 	}()
 
 	log.Printf("gateway listening on %s", srv.Addr)
-	return srv.ListenAndServe()
+
+	err = srv.ListenAndServe()
+	if err != nil && err != http.ErrServerClosed {
+		return err
+	}
+
+	return nil
 }

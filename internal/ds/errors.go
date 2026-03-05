@@ -3,5 +3,6 @@ package ds
 import "errors"
 
 var (
-	ErrInvalidRuntime = errors.New("Invalid runtime type")
+	ErrInvalidRuntime  = errors.New("invalid runtime type")
+	ErrFunctionTimeout = errors.New("function timeout")
 )

@@ -2,22 +2,33 @@ package builder
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"time"
 )
 
+const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
+WORKDIR /app
+COPY . .
+RUN go mod download && go build -o handler main.go
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=build /app/handler /handler
+ENTRYPOINT ["/handler"]
+`
+
 func (b *Builder) buildDocker(ctx context.Context, name string, files map[string][]byte) (string, error) {
-	// h := sha256.New()
-	// for fname, content := range files {
-	// 	h.Write([]byte(fname))
-	// 	h.Write(content)
-	// }
-	// tag := hex.EncodeToString(h.Sum(nil))[:12]
-	tag := hex.EncodeToString([]byte(time.Now().String()))[1:13]
+	h := sha256.New()
+	for fname, content := range files {
+		h.Write([]byte(fname))
+		h.Write(content)
+	}
+	tag := hex.EncodeToString(h.Sum(nil))[:12]
+	// tag := hex.EncodeToString([]byte(time.Now().String()))[1:13]
 	registry := "localhost:5000" //move to env
 	image := fmt.Sprintf("%s/mini-faas/%s:%s", registry, name, tag)
 
@@ -80,14 +91,3 @@ func pushToRegistry(ctx context.Context, image string) error {
 	}
 	return nil
 }
-
-const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
-WORKDIR /app
-COPY . .
-RUN go mod download && go build -o handler main.go
-
-FROM alpine:latest
-WORKDIR /app
-COPY --from=build /app/handler /handler
-ENTRYPOINT ["/handler"]
-`

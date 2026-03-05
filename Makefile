@@ -28,3 +28,10 @@ registry:
 	sudo docker run -d --restart=always --name registry -p 5000:5000 \
 	-v /opt/registry/data:/var/lib/registry \
 	registry:2
+
+
+build:
+	go build -o ./bin/app  cmd/cmd/main.go
+
+run: 
+	go build -o ./bin/app  cmd/cmd/main.go && ./bin/app

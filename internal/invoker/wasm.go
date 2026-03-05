@@ -3,8 +3,8 @@ package invoker
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
@@ -24,10 +24,11 @@ func (i *Invoker) invokeWasm(
 		Status:     ds.StatusSuccess,
 	}
 	getCompTime := time.Now()
-	compiled, err := i.wasmCache.GetOrCompile(ctx, i.r, fn)
+	compiled, err := i.GetOrCompile(ctx, fn)
 	if err != nil {
 		return nil, nil, err, nil
 	}
+	defer compiled.Close(context.Background())
 	log.Printf("GetOrCompile duration %v", time.Since(getCompTime).Milliseconds())
 
 	if timeout == 0 {
@@ -37,20 +38,11 @@ func (i *Invoker) invokeWasm(
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	modCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// _, err := i.r.InstantiateWithConfig(
-	// 	ctx,
-	// 	wasmBytes,
-	// 	wazero.NewModuleConfig().
-	// 		WithStdin(bytes.NewReader(input)).
-	// 		WithStdout(stdout).
-	// 		WithStderr(stderr),
-	// )
-
 	initTime := time.Now()
-	_, err = i.r.InstantiateModule(ctx, compiled, wazero.NewModuleConfig().
+	mod, err := i.r.InstantiateModule(modCtx, compiled, wazero.NewModuleConfig().
 		WithStdin(bytes.NewReader(input)).
 		WithStdout(stdout).
 		WithStderr(stderr))
@@ -60,11 +52,11 @@ func (i *Invoker) invokeWasm(
 
 	log.Printf("InstantiateModule duration %v", time.Since(initTime).Milliseconds())
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if modCtx.Err() == context.DeadlineExceeded {
 			execLog.Status = ds.StatusTimeout
-			execLog.ErrorMessage = "function timeout" // TO DO fix
+			execLog.ErrorMessage = ds.ErrFunctionTimeout.Error()
 			return stdout.Bytes(), stderr.Bytes(),
-				fmt.Errorf("function timeout"), execLog
+				ds.ErrFunctionTimeout, execLog
 		}
 
 		execLog.Status = ds.StatusError
@@ -72,5 +64,20 @@ func (i *Invoker) invokeWasm(
 		return stdout.Bytes(), stderr.Bytes(), err, execLog
 	}
 
+	defer mod.Close(context.Background())
+
 	return stdout.Bytes(), stderr.Bytes(), nil, execLog
+}
+
+func (i *Invoker) GetOrCompile(ctx context.Context, fn ds.Function) (wazero.CompiledModule, error) {
+	wasmBytes, err := os.ReadFile(fn.WasmPath)
+	if err != nil {
+		return nil, err
+	}
+	compiled, err := i.r.CompileModule(ctx, wasmBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return compiled, nil
 }

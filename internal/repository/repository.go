@@ -65,7 +65,7 @@ func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err := r.db.Write(ctx).Query(ctx, query,
+	_, err := r.db.Write(ctx).Exec(ctx, query,
 		log.FunctionID,
 		log.StartedAt,
 		log.FinishedAt,
