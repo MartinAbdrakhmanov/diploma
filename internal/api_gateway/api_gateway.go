@@ -17,6 +17,7 @@ import (
 type functionRegistry interface {
 	Register(ctx context.Context, entry ds.Entry) (id string, err error)
 	Get(ctx context.Context, id string) (ds.Function, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type invoker interface {
@@ -121,4 +122,20 @@ func (g *Gateway) HandleInvoke(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(stdout)
+}
+
+// POST /functions/{id}/delete
+// Body: function id string (UUID)
+func (g *Gateway) HandleDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := mux.Vars(r)["id"]
+
+	err := g.registry.Delete(ctx, id)
+
+	if err != nil {
+		http.Error(w, "failed to delete function record", 500)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

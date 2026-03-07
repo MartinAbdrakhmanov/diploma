@@ -63,6 +63,7 @@ func runGW(ctx context.Context, cont *container.Container) error {
 	r := mux.NewRouter()
 	r.HandleFunc("/functions", gw.HandleRegister).Methods("POST")
 	r.HandleFunc("/functions/{id}/invoke", gw.HandleInvoke).Methods("POST")
+	r.HandleFunc("/functions/{id}/delete", gw.HandleDelete).Methods("POST")
 
 	srv := &http.Server{
 		Addr:    ":8080",

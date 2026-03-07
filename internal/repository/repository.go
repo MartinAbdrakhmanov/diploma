@@ -49,7 +49,6 @@ func (r *Repository) GetFunction(ctx context.Context, id string) (function ds.Fu
 	FROM functions
 	WHERE id = $1
 	`
-	// err = r.db.QueryRow(ctx, storage.ReadMode, query, id).Scan(&function)
 	err = pgxscan.Get(ctx, r.db.Read(ctx), &function, query, id)
 
 	if err != nil {
@@ -75,6 +74,17 @@ func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 		log.ErrorCode,
 		log.ErrorMessage,
 	)
+
+	return err
+}
+
+func (r *Repository) DeleteFunction(ctx context.Context, id string) error {
+	query := `
+	DELETE FROM functions
+	WHERE id = $1
+	`
+
+	_, err := r.db.Write(ctx).Exec(ctx, query, id)
 
 	return err
 }

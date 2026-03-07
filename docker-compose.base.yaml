@@ -16,3 +16,14 @@ services:
       interval: 1s
       timeout: 1s
       retries: 30
+      
+  registry:
+    image: registry:2
+    container_name: registry
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+    volumes:
+      - ./local/registry-data:/var/lib/registry

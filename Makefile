@@ -35,3 +35,13 @@ build:
 
 run: 
 	go build -o ./bin/app  cmd/cmd/main.go && ./bin/app
+
+
+
+# Команда для очистки реестра
+registry-gc:
+	docker exec registry bin/registry garbage-collect /etc/docker/registry/config.yml --delete-untagged
+
+# Посмотреть что сейчас в реестре
+registry-ls:
+	@curl -s http://localhost:5000/v2/_catalog | jq .
