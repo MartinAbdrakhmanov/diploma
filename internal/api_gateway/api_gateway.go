@@ -10,14 +10,13 @@ import (
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 type functionRegistry interface {
 	Register(ctx context.Context, entry ds.Entry) (id string, err error)
-	Get(ctx context.Context, id string) (ds.Function, error)
-	Delete(ctx context.Context, id string) error
+	Get(ctx context.Context, userID, id string) (ds.Function, error)
+	Delete(ctx context.Context, userID, id string) error
 }
 
 type invoker interface {
@@ -49,6 +48,12 @@ func New(
 func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
+	userID := r.Header.Get("X-User-ID") // change me
+	if userID == "" {
+		http.Error(w, "missing user", http.StatusUnauthorized)
+		return
+	}
+
 	if err := r.ParseMultipartForm(50 << 20); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -71,12 +76,11 @@ func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	userID := uuid.New()
 	entry := ds.Entry{
 		Name:    name,
 		Runtime: runtime,
 		Files:   files,
-		UserId:  userID.String(), // потом из auth
+		UserId:  userID,
 	}
 
 	id, err := g.registry.Register(ctx, entry)
@@ -98,15 +102,31 @@ func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 // Body: SDKRequest JSON
 func (g *Gateway) HandleInvoke(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	userID := r.Header.Get("X-User-ID") // change me
+	if userID == "" {
+		http.Error(w, "missing user", http.StatusUnauthorized)
+		return
+	}
+
 	id := mux.Vars(r)["id"]
 
-	fn, err := g.registry.Get(ctx, id)
+	fn, err := g.registry.Get(ctx, userID, id)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if fn.ID == "" {
 		http.Error(w, "function not found", http.StatusNotFound)
 		return
 	}
 
-	input, _ := io.ReadAll(r.Body)
+	input, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	stdout, stderr, err := g.invoker.Invoke(
 		ctx,
@@ -128,12 +148,19 @@ func (g *Gateway) HandleInvoke(w http.ResponseWriter, r *http.Request) {
 // Body: function id string (UUID)
 func (g *Gateway) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+
+	userID := r.Header.Get("X-User-ID") // change me
+	if userID == "" {
+		http.Error(w, "missing user", http.StatusUnauthorized)
+		return
+	}
+
 	id := mux.Vars(r)["id"]
 
-	err := g.registry.Delete(ctx, id)
+	err := g.registry.Delete(ctx, userID, id)
 
 	if err != nil {
-		http.Error(w, "failed to delete function record", 500)
+		http.Error(w, err.Error(), 500)
 		return
 	}
 

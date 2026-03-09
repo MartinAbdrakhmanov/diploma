@@ -9,8 +9,8 @@ import (
 
 type repository interface {
 	SaveFunction(ctx context.Context, function ds.Function) (id string, err error)
-	GetFunction(ctx context.Context, id string) (function ds.Function, err error)
-	DeleteFunction(ctx context.Context, id string) error
+	GetFunction(ctx context.Context, userID, id string) (function ds.Function, err error)
+	DeleteFunction(ctx context.Context, userID, id string) error
 }
 
 type builder interface {
@@ -44,23 +44,27 @@ func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err
 	return id, nil
 }
 
-func (r *Registry) Get(ctx context.Context, id string) (ds.Function, error) {
-	return r.repo.GetFunction(ctx, id)
+func (r *Registry) Get(ctx context.Context, userID, id string) (ds.Function, error) {
+	return r.repo.GetFunction(ctx, userID, id)
 }
 
 // can corrupt data, fine for now
-func (r *Registry) Delete(ctx context.Context, id string) error {
+func (r *Registry) Delete(ctx context.Context, userID, id string) error {
 
-	fn, err := r.repo.GetFunction(ctx, id)
+	fn, err := r.repo.GetFunction(ctx, userID, id)
 	if err != nil {
 		return errors.Wrapf(err, "err while getting function with id %v", id)
+	}
+
+	if fn.ID == "" {
+		return nil
 	}
 
 	if err := r.builder.RemoveFunction(ctx, fn); err != nil {
 		return errors.Wrapf(err, "err while removing artefacts for function id %v", id)
 	}
 
-	if err := r.repo.DeleteFunction(ctx, id); err != nil {
+	if err := r.repo.DeleteFunction(ctx, userID, id); err != nil {
 		return errors.Wrapf(err, "err while removing function entry with id %v from db", id)
 	}
 

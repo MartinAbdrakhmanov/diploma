@@ -11,7 +11,7 @@ import (
 
 const wasmStoreDir = "/var/lib/mini-faas/wasm"
 
-func (b *Builder) buildWasm(ctx context.Context, name string, files map[string][]byte) (string, error) {
+func (b *Builder) buildWasm(ctx context.Context, userID, name string, files map[string][]byte) (string, error) {
 
 	dir, err := prepareBuildContext(files)
 	if err != nil {
@@ -29,21 +29,24 @@ func (b *Builder) buildWasm(ctx context.Context, name string, files map[string][
 		"GOARCH=wasm",
 	)
 
-	if err := cmd.Run(); err != nil {
-		return "", err
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("build failed: %s", string(out))
 	}
 
 	wasmPath := filepath.Join(dir, "handler.wasm")
 
-	return storeWasm(name, wasmPath)
+	return storeWasm(userID, name, wasmPath)
 }
 
-func storeWasm(functionID string, wasmPath string) (string, error) {
-	if err := os.MkdirAll(wasmStoreDir, 0755); err != nil {
+func storeWasm(userID, functionName, wasmPath string) (string, error) {
+	userDir := filepath.Join(wasmStoreDir, userID)
+
+	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", fmt.Errorf("create wasm store dir: %w", err)
 	}
 
-	dstPath := filepath.Join(wasmStoreDir, functionID+".wasm")
+	dstPath := filepath.Join(userDir, functionName+".wasm")
 
 	src, err := os.Open(wasmPath)
 	if err != nil {

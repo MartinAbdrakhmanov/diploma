@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 )
 
 const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
@@ -21,16 +22,29 @@ COPY --from=build /app/handler /handler
 ENTRYPOINT ["/handler"]
 `
 
-func (b *Builder) buildDocker(ctx context.Context, name string, files map[string][]byte) (string, error) {
+func (b *Builder) buildDocker(ctx context.Context, userID, name string, files map[string][]byte) (string, error) {
 	h := sha256.New()
-	for fname, content := range files {
+	keys := make([]string, 0, len(files))
+	for k := range files {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, fname := range keys {
+		content := files[fname]
 		h.Write([]byte(fname))
 		h.Write(content)
 	}
 	tag := hex.EncodeToString(h.Sum(nil))[:12]
 	// tag := hex.EncodeToString([]byte(time.Now().String()))[1:13]
 	registry := "localhost:5000" //move to env
-	image := fmt.Sprintf("%s/mini-faas/%s:%s", registry, name, tag)
+	image := fmt.Sprintf(
+		"%s/mini-faas/%s/%s:%s",
+		registry,
+		userID,
+		name,
+		tag,
+	)
 
 	dir, err := prepareBuildContext(files)
 	if err != nil {

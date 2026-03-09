@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/MartinAbdrakhmanov/diploma/pkg/storage"
 	"github.com/georgysavva/scany/v2/pgxscan"
+	"github.com/jackc/pgx/v5"
 )
 
 type Repository struct {
@@ -43,15 +45,18 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
 
 	return id, nil
 }
-func (r *Repository) GetFunction(ctx context.Context, id string) (function ds.Function, err error) {
+func (r *Repository) GetFunction(ctx context.Context, userID, id string) (function ds.Function, err error) {
 	query := `
 	SELECT id, user_id, "name", runtime, wasm_path, "image", "timeout", max_memory
 	FROM functions
-	WHERE id = $1
+	WHERE user_id = $1 AND id = $2
 	`
-	err = pgxscan.Get(ctx, r.db.Read(ctx), &function, query, id)
+	err = pgxscan.Get(ctx, r.db.Read(ctx), &function, query, userID, id)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ds.Function{}, nil
+		}
 		return ds.Function{}, err
 	}
 
@@ -78,13 +83,13 @@ func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 	return err
 }
 
-func (r *Repository) DeleteFunction(ctx context.Context, id string) error {
+func (r *Repository) DeleteFunction(ctx context.Context, userID, id string) error {
 	query := `
 	DELETE FROM functions
-	WHERE id = $1
+	WHERE user_id = $1 AND id = $2
 	`
 
-	_, err := r.db.Write(ctx).Exec(ctx, query, id)
+	_, err := r.db.Write(ctx).Exec(ctx, query, userID, id)
 
 	return err
 }
