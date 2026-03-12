@@ -9,6 +9,7 @@ CREATE TABLE execution_logs (
     started_at  TIMESTAMPTZ NOT NULL,
     finished_at TIMESTAMPTZ NOT NULL,
     duration_ms BIGINT NOT NULL,
+    coldstart INT,
 
     status TEXT NOT NULL CHECK (status IN ('success', 'error', 'timeout')),
 
@@ -16,6 +17,8 @@ CREATE TABLE execution_logs (
     error_code TEXT,       
     error_message TEXT,     
 
+    memory_bytes INT,
+    cpu_percent INT,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

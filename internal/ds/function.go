@@ -21,7 +21,7 @@ type Function struct {
 	WasmPath  string   `db:"wasm_path"`
 	Timeout   int      `db:"timeout"`
 	MaxMemory int64    `db:"max_memory"`
-	Args      []string // is it even needed??
+	Args      []string //TODO is it even needed??
 }
 
 type ExecLog struct {
@@ -32,12 +32,16 @@ type ExecLog struct {
 	StartedAt  time.Time `db:"started_at"`
 	FinishedAt time.Time `db:"finished_at"`
 	DurationMs int64     `db:"duration_ms"`
+	Coldstart  int64     `db:"coldstart"`
 
 	Status string `db:"status"`
 
 	ExitCode     uint32 `db:"exit_code"`
 	ErrorCode    string `db:"error_code"`
 	ErrorMessage string `db:"error_message"`
+
+	MemoryBytes uint64 `db:"memory_bytes"`
+	CPUPercent  uint64 `db:"cpu_percent"`
 
 	CreatedAt time.Time `db:"created_at"`
 }

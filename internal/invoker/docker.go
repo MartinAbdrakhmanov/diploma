@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"syscall"
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
+	"github.com/containerd/cgroups/v3/cgroup1/stats"
+	statsv2 "github.com/containerd/cgroups/v3/cgroup2/stats"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
+	"github.com/containerd/typeurl/v2"
 )
 
 func (i *Invoker) invokeDocker(
@@ -89,6 +93,7 @@ func (i *Invoker) invokeDocker(
 	var (
 		execErr error
 	)
+
 	select {
 	case status := <-waitC:
 		if status.ExitCode() != 0 {
@@ -109,4 +114,38 @@ func (i *Invoker) invokeDocker(
 	execLog.DurationMs = time.Since(execLog.StartedAt).Milliseconds()
 
 	return stdout.Bytes(), stderr.Bytes(), execErr, execLog
+}
+
+// wip
+func collectMetrics(ctx context.Context, task containerd.Task, execLog *ds.ExecLog) {
+	metrics, err := task.Metrics(ctx)
+	if err != nil {
+		log.Printf("error while collecting metrics for %v function \n", execLog.FunctionID)
+	}
+
+	data, err := typeurl.UnmarshalAny(metrics.Data)
+	if err != nil {
+		log.Printf("failed to unmarshal metrics: %v", err)
+		return
+	}
+
+	switch m := data.(type) {
+	case *stats.Metrics: // Для Cgroups v1
+		if m.CPU != nil && m.CPU.Usage != nil {
+			execLog.CPUPercent = m.CPU.Usage.Total
+		}
+		if m.Memory != nil && m.Memory.Usage != nil {
+			execLog.MemoryBytes = m.Memory.Usage.Usage
+		}
+	case *statsv2.Metrics: // Для Cgroups v2
+		if m.CPU != nil {
+			execLog.CPUPercent = m.CPU.UsageUsec * 1000 // Перевод в наносекунды для соответствия v1
+		}
+		if m.Memory != nil {
+			execLog.MemoryBytes = m.Memory.Usage
+		}
+	default:
+		log.Printf("unknown metrics type: %T", m)
+	}
+
 }

@@ -4,9 +4,10 @@ go 1.25.5
 
 require (
 	github.com/containerd/containerd v1.7.30
+	github.com/containerd/containerd/v2 v2.1.2
+	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/go-faster/errors v0.7.1
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e
@@ -18,6 +19,7 @@ require (
 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.14.0-rc.1 // indirect
+	github.com/cilium/ebpf v0.16.0 // indirect
 	github.com/containerd/cgroups/v3 v3.1.0 // indirect
 	github.com/containerd/containerd/api v1.10.0 // indirect
 	github.com/containerd/continuity v0.4.5 // indirect
@@ -27,16 +29,18 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.2 // indirect
 	github.com/containerd/ttrpc v1.2.7 // indirect
-	github.com/containerd/typeurl/v2 v2.2.3 // indirect
+	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.5.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
@@ -62,6 +66,8 @@ require (
 	go.opentelemetry.io/otel/sdk v1.38.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.38.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
+	go.uber.org/goleak v1.3.0 // indirect
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
