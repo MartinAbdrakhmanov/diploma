@@ -24,7 +24,7 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
 	query := `
 	INSERT INTO functions (user_id, "name", runtime, wasm_path, "image", "timeout", max_memory)
 	VALUES ($1, $2, $3, $4, $5, $6, $7)
-	ON CONFLICT (user_id, "name")
+	ON CONFLICT (user_id, "name", runtime)
     DO UPDATE SET
         updated_at = CURRENT_TIMESTAMP
 	RETURNING id;
@@ -65,8 +65,8 @@ func (r *Repository) GetFunction(ctx context.Context, userID, id string) (functi
 
 func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 	query := `
-	INSERT INTO execution_logs (function_id, started_at, finished_at, duration_ms, status, exit_code, error_code, error_message)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	INSERT INTO execution_logs (function_id, started_at, finished_at, duration_ms, status, exit_code, error_code, error_message, max_memory_bytes, cpu_time_ms, init_time_ms, exec_time_ms)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	_, err := r.db.Write(ctx).Exec(ctx, query,
@@ -78,6 +78,10 @@ func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 		log.ExitCode,
 		log.ErrorCode,
 		log.ErrorMessage,
+		log.MaxMemoryBytes,
+		log.CPUTimeMs,
+		log.InitTimeMs,
+		log.ExecTimeMs,
 	)
 
 	return err

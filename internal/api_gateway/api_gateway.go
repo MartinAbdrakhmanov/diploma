@@ -48,7 +48,7 @@ func New(
 func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.Header.Get("X-User-ID") // change me
+	userID := r.Header.Get("X-User-ID") //TODO change me to proper auth
 	if userID == "" {
 		http.Error(w, "missing user", http.StatusUnauthorized)
 		return

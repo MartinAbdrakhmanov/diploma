@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS functions (
     max_memory INT DEFAULT 0,   -- 0 = unspecified, bytes
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_called_at TIMESTAMPTZ,
-    UNIQUE (user_id, "name")
+    last_called_at TIMESTAMPTZ, -- delete me
+    UNIQUE (user_id, "name", runtime)
 );
 -- +goose StatementEnd
 

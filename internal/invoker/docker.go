@@ -75,12 +75,15 @@ func (i *Invoker) invokeDocker(
 	}
 	defer task.Delete(ctx, containerd.WithProcessKill)
 
+	execLog.InitTimeMs = time.Since(execLog.StartedAt).Milliseconds()
+
 	if err := task.Start(ctx); err != nil {
 		return nil, nil, err, nil
 	}
 
 	task.CloseIO(ctx, containerd.WithStdinCloser)
 
+	// TODO ctx with timeout? (or mb it doesnt work)
 	waitC, err := task.Wait(ctx)
 	if err != nil {
 		return nil, nil, err, nil
@@ -112,6 +115,8 @@ func (i *Invoker) invokeDocker(
 	}
 	execLog.FinishedAt = time.Now()
 	execLog.DurationMs = time.Since(execLog.StartedAt).Milliseconds()
+	execLog.ExecTimeMs = time.Since(execLog.StartedAt).Milliseconds() - execLog.InitTimeMs
+	collectMetrics(ctx, task, execLog)
 
 	return stdout.Bytes(), stderr.Bytes(), execErr, execLog
 }
@@ -132,17 +137,17 @@ func collectMetrics(ctx context.Context, task containerd.Task, execLog *ds.ExecL
 	switch m := data.(type) {
 	case *stats.Metrics: // Для Cgroups v1
 		if m.CPU != nil && m.CPU.Usage != nil {
-			execLog.CPUPercent = m.CPU.Usage.Total
+			execLog.CPUTimeMs = m.CPU.Usage.Total / 1000000
 		}
 		if m.Memory != nil && m.Memory.Usage != nil {
-			execLog.MemoryBytes = m.Memory.Usage.Usage
+			execLog.MaxMemoryBytes = m.Memory.Usage.Usage
 		}
 	case *statsv2.Metrics: // Для Cgroups v2
 		if m.CPU != nil {
-			execLog.CPUPercent = m.CPU.UsageUsec * 1000 // Перевод в наносекунды для соответствия v1
+			execLog.CPUTimeMs = m.CPU.UsageUsec / 1000
 		}
 		if m.Memory != nil {
-			execLog.MemoryBytes = m.Memory.Usage
+			execLog.MaxMemoryBytes = m.Memory.MaxUsage
 		}
 	default:
 		log.Printf("unknown metrics type: %T", m)

@@ -32,7 +32,8 @@ type ExecLog struct {
 	StartedAt  time.Time `db:"started_at"`
 	FinishedAt time.Time `db:"finished_at"`
 	DurationMs int64     `db:"duration_ms"`
-	Coldstart  int64     `db:"coldstart"`
+	InitTimeMs int64     `db:"init_time_ms"`
+	ExecTimeMs int64     `db:"exec_time_ms"`
 
 	Status string `db:"status"`
 
@@ -40,8 +41,8 @@ type ExecLog struct {
 	ErrorCode    string `db:"error_code"`
 	ErrorMessage string `db:"error_message"`
 
-	MemoryBytes uint64 `db:"memory_bytes"`
-	CPUPercent  uint64 `db:"cpu_percent"`
+	MaxMemoryBytes uint64 `db:"max_memory_bytes"`
+	CPUTimeMs      uint64 `db:"cpu_time_ns"`
 
 	CreatedAt time.Time `db:"created_at"`
 }

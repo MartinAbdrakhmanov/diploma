@@ -3,13 +3,14 @@ package invoker
 import (
 	"bytes"
 	"context"
-	"log"
 	"os"
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/tetratelabs/wazero"
 )
+
+const pageSize = 64 * 1024
 
 func (i *Invoker) invokeWasm(
 	ctx context.Context,
@@ -23,13 +24,12 @@ func (i *Invoker) invokeWasm(
 		StartedAt:  time.Now(),
 		Status:     ds.StatusSuccess,
 	}
-	getCompTime := time.Now()
 	compiled, err := i.GetOrCompile(ctx, fn)
 	if err != nil {
 		return nil, nil, err, nil
 	}
 	defer compiled.Close(context.Background())
-	log.Printf("GetOrCompile duration %v", time.Since(getCompTime).Milliseconds())
+	execLog.InitTimeMs = time.Since(execLog.StartedAt).Milliseconds()
 
 	if timeout == 0 {
 		timeout = ds.DefaultTimeout
@@ -41,7 +41,6 @@ func (i *Invoker) invokeWasm(
 	modCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	initTime := time.Now()
 	mod, err := i.r.InstantiateModule(modCtx, compiled, wazero.NewModuleConfig().
 		WithStdin(bytes.NewReader(input)).
 		WithStdout(stdout).
@@ -49,8 +48,8 @@ func (i *Invoker) invokeWasm(
 
 	execLog.FinishedAt = time.Now()
 	execLog.DurationMs = time.Since(execLog.StartedAt).Milliseconds()
+	execLog.ExecTimeMs = time.Since(execLog.StartedAt).Milliseconds() - execLog.InitTimeMs
 
-	log.Printf("InstantiateModule duration %v", time.Since(initTime).Milliseconds())
 	if err != nil {
 		if modCtx.Err() == context.DeadlineExceeded {
 			execLog.Status = ds.StatusTimeout
@@ -62,6 +61,10 @@ func (i *Invoker) invokeWasm(
 		execLog.Status = ds.StatusError
 		execLog.ErrorMessage = err.Error()
 		return stdout.Bytes(), stderr.Bytes(), err, execLog
+	}
+	if mem := mod.Memory(); mem != nil {
+		currentPages, _ := mem.Grow(0)
+		execLog.MaxMemoryBytes = uint64(currentPages) * uint64(pageSize)
 	}
 
 	defer mod.Close(context.Background())
