@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
+	"github.com/MartinAbdrakhmanov/diploma/internal/metrics"
 	"github.com/containerd/containerd"
 	"github.com/tetratelabs/wazero"
 )
@@ -54,6 +55,8 @@ func (i *Invoker) Invoke(
 		if err := i.repo.SaveLog(ctx, *execLog); err != nil {
 			log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
 		}
+		metrics.FunctionDurationObserve(fn, float64(execLog.DurationMs))
+		metrics.FunctionInvocationInc(fn, execLog.Status)
 	}
 
 	return stdout, stderr, err
