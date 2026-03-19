@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/container"
+	"github.com/MartinAbdrakhmanov/diploma/internal/metrics"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -64,6 +66,10 @@ func runGW(ctx context.Context, cont *container.Container) error {
 	r.HandleFunc("/functions", gw.HandleRegister).Methods("POST")
 	r.HandleFunc("/functions/{id}/invoke", gw.HandleInvoke).Methods("POST")
 	r.HandleFunc("/functions/{id}/delete", gw.HandleDelete).Methods("POST")
+	r.HandleFunc("/functions/{id}/stats", gw.HandleStats).Methods("GET")
+
+	metrics.Init()
+	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	srv := &http.Server{
 		Addr:    ":8080",

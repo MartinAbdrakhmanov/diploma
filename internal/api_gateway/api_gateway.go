@@ -17,6 +17,7 @@ type functionRegistry interface {
 	Register(ctx context.Context, entry ds.Entry) (id string, err error)
 	Get(ctx context.Context, userID, id string) (ds.Function, error)
 	Delete(ctx context.Context, userID, id string) error
+	FunctionStats(ctx context.Context, userID, id string) (ds.FunctionStats, error)
 }
 
 type invoker interface {
@@ -48,7 +49,7 @@ func New(
 func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.Header.Get("X-User-ID") // change me
+	userID := r.Header.Get("X-User-ID") //TODO change me to proper auth
 	if userID == "" {
 		http.Error(w, "missing user", http.StatusUnauthorized)
 		return
@@ -59,8 +60,8 @@ func (g *Gateway) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
-	runtime := r.FormValue("runtime") // "docker" | "wasm"
+	name := strings.ToLower(r.FormValue("name"))
+	runtime := strings.ToLower(r.FormValue("runtime")) // "docker" | "wasm"
 	if runtime == "" {
 		http.Error(w, "runtime is required", http.StatusBadRequest)
 		return
@@ -165,4 +166,26 @@ func (g *Gateway) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /functions/{id}/stats
+func (g *Gateway) HandleStats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "missing user", http.StatusUnauthorized)
+		return
+	}
+
+	id := mux.Vars(r)["id"]
+
+	stats, err := g.registry.FunctionStats(ctx, userID, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }

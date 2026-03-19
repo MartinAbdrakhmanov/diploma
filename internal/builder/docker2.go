@@ -89,6 +89,7 @@ func prepareBuildContext(files map[string][]byte) (string, error) {
 	return dir, nil
 }
 
+// TODO fix error handling (now exit code 1 instead of actual error)
 func dockerBuild(ctx context.Context, dir, image string) error {
 	cmd := exec.CommandContext(ctx, "docker", "build", "-t", image, dir)
 	cmd.Stdout = os.Stdout

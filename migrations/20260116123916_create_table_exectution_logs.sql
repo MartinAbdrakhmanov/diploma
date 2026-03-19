@@ -9,6 +9,8 @@ CREATE TABLE execution_logs (
     started_at  TIMESTAMPTZ NOT NULL,
     finished_at TIMESTAMPTZ NOT NULL,
     duration_ms BIGINT NOT NULL,
+    init_time_ms BIGINT, 
+    exec_time_ms BIGINT,
 
     status TEXT NOT NULL CHECK (status IN ('success', 'error', 'timeout')),
 
@@ -16,6 +18,8 @@ CREATE TABLE execution_logs (
     error_code TEXT,       
     error_message TEXT,     
 
+    max_memory_bytes BIGINT, -- function memory, doesnt include isolation extras
+    cpu_time_ms BIGINT,        -- docker only
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

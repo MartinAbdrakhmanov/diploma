@@ -11,6 +11,7 @@ type repository interface {
 	SaveFunction(ctx context.Context, function ds.Function) (id string, err error)
 	GetFunction(ctx context.Context, userID, id string) (function ds.Function, err error)
 	DeleteFunction(ctx context.Context, userID, id string) error
+	FunctionStats(ctx context.Context, userID, functionID string) (ds.FunctionStats, error)
 }
 
 type builder interface {
@@ -69,4 +70,12 @@ func (r *Registry) Delete(ctx context.Context, userID, id string) error {
 	}
 
 	return nil
+}
+
+func (r *Registry) FunctionStats(ctx context.Context, userID, id string) (ds.FunctionStats, error) {
+	stats, err := r.repo.FunctionStats(ctx, userID, id)
+	if err != nil {
+		return ds.FunctionStats{}, errors.Wrapf(err, "err while fetching stats for function %v", id)
+	}
+	return stats, nil
 }

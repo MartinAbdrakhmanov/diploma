@@ -20,6 +20,7 @@ func New(dbManager *storage.Client) *Repository {
 	}
 }
 
+// TODO rethink conflict resolution
 func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id string, err error) {
 	query := `
 	INSERT INTO functions (user_id, "name", runtime, wasm_path, "image", "timeout", max_memory)
@@ -65,8 +66,8 @@ func (r *Repository) GetFunction(ctx context.Context, userID, id string) (functi
 
 func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 	query := `
-	INSERT INTO execution_logs (function_id, started_at, finished_at, duration_ms, status, exit_code, error_code, error_message)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	INSERT INTO execution_logs (function_id, started_at, finished_at, duration_ms, status, exit_code, error_code, error_message, max_memory_bytes, cpu_time_ms, init_time_ms, exec_time_ms)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	_, err := r.db.Write(ctx).Exec(ctx, query,
@@ -78,6 +79,10 @@ func (r *Repository) SaveLog(ctx context.Context, log ds.ExecLog) error {
 		log.ExitCode,
 		log.ErrorCode,
 		log.ErrorMessage,
+		log.MaxMemoryBytes,
+		log.CPUTimeMs,
+		log.InitTimeMs,
+		log.ExecTimeMs,
 	)
 
 	return err
@@ -92,4 +97,36 @@ func (r *Repository) DeleteFunction(ctx context.Context, userID, id string) erro
 	_, err := r.db.Write(ctx).Exec(ctx, query, userID, id)
 
 	return err
+}
+
+func (r *Repository) FunctionStats(ctx context.Context, userID, functionID string) (ds.FunctionStats, error) {
+	var stats ds.FunctionStats
+
+	query := `
+    WITH last_calls AS (
+        SELECT duration_ms, max_memory_bytes, status
+        FROM execution_logs l
+        JOIN functions f ON l.function_id = f.id
+        WHERE f.user_id = $1 AND f.id = $2
+        ORDER BY l.created_at DESC
+        LIMIT 100
+    )
+    SELECT 
+        COALESCE(AVG(max_memory_bytes), 0),
+        COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY max_memory_bytes), 0),
+        COALESCE(AVG(duration_ms), 0),
+        COALESCE(COUNT(*) FILTER (WHERE status = 'success')::float / NULLIF(COUNT(*), 0) * 100, 0),
+        COUNT(*)
+    FROM last_calls
+    `
+
+	err := r.db.Read(ctx).QueryRow(ctx, query, userID, functionID).Scan(
+		&stats.AvgMemory,
+		&stats.P95Memory,
+		&stats.AvgDuration,
+		&stats.SuccessRate,
+		&stats.TotalInvocations,
+	)
+
+	return stats, err
 }

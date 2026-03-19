@@ -7,6 +7,8 @@ import (
 	"github.com/tetratelabs/wazero"
 )
 
+var maxPages uint32 = 2048 // 128 mb TODO
+
 func (c *Container) NewWasmRuntime(ctx context.Context) (wazero.Runtime, error) {
 	cacheDir := "/test/wasm_cache_v1" //TODO change me
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
@@ -18,7 +20,7 @@ func (c *Container) NewWasmRuntime(ctx context.Context) (wazero.Runtime, error) 
 		return nil, err
 	}
 
-	config := wazero.NewRuntimeConfig().WithCompilationCache(compCache)
+	config := wazero.NewRuntimeConfig().WithCompilationCache(compCache).WithMemoryLimitPages(maxPages)
 
 	return wazero.NewRuntimeWithConfig(ctx, config), nil
 }

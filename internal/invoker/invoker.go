@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
+	"github.com/MartinAbdrakhmanov/diploma/internal/metrics"
 	"github.com/containerd/containerd"
 	"github.com/tetratelabs/wazero"
 )
@@ -15,10 +16,9 @@ type repository interface {
 }
 
 type Invoker struct {
-	client    *containerd.Client
-	r         wazero.Runtime
-	repo      repository
-	wasmCache *WasmCache
+	client *containerd.Client
+	r      wazero.Runtime
+	repo   repository
 }
 
 func New(
@@ -27,10 +27,9 @@ func New(
 	repo repository,
 ) *Invoker {
 	return &Invoker{
-		client:    client,
-		r:         r,
-		repo:      repo,
-		wasmCache: NewWasmCache(),
+		client: client,
+		r:      r,
+		repo:   repo,
 	}
 }
 
@@ -56,6 +55,8 @@ func (i *Invoker) Invoke(
 		if err := i.repo.SaveLog(ctx, *execLog); err != nil {
 			log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
 		}
+		metrics.FunctionDurationObserve(fn, float64(execLog.DurationMs))
+		metrics.FunctionInvocationInc(fn, execLog.Status)
 	}
 
 	return stdout, stderr, err
