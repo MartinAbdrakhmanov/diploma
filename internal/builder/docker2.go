@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -37,10 +38,10 @@ func (b *Builder) buildDocker(ctx context.Context, userID, name string, files ma
 	}
 	tag := hex.EncodeToString(h.Sum(nil))[:12]
 	// tag := hex.EncodeToString([]byte(time.Now().String()))[1:13]
-	registry := "localhost:5000" //move to env
+	// registry := "localhost:5000" //move to env
 	image := fmt.Sprintf(
 		"%s/mini-faas/%s/%s:%s",
-		registry,
+		b.cfg.DockerRegistryPath,
 		userID,
 		name,
 		tag,
@@ -89,12 +90,17 @@ func prepareBuildContext(files map[string][]byte) (string, error) {
 	return dir, nil
 }
 
-// TODO fix error handling (now exit code 1 instead of actual error)
 func dockerBuild(ctx context.Context, dir, image string) error {
+	var stderr bytes.Buffer
+
 	cmd := exec.CommandContext(ctx, "docker", "build", "-t", image, dir)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w, output: %s", err, stderr.String())
+	}
+	return nil
 }
 
 func pushToRegistry(ctx context.Context, image string) error {

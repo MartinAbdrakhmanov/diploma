@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
@@ -23,11 +23,7 @@ func (b *Builder) RemoveFunction(ctx context.Context, fn ds.Function) error {
 	case ds.DockerRuntime:
 		if fn.Image != "" {
 
-			// if err := b.removeFromRegistry(ctx, fn.Image); err != nil {
-			// 	log.Printf("Warning: could not delete from registry: %v", err)
-			// }
-			// TODO изменить удаление из registry, сейчас ультра костыльно удаляется папка
-			if err := b.removeRepositoryFromDisk(fn.Image); err != nil {
+			if err := b.removeFromRegistry(ctx, fn.Image); err != nil {
 				log.Printf("Warning: could not delete from registry: %v", err)
 			}
 			cmd := exec.CommandContext(ctx, "docker", "rmi", fn.Image)
@@ -38,36 +34,95 @@ func (b *Builder) RemoveFunction(ctx context.Context, fn ds.Function) error {
 	return nil
 }
 
-func (b *Builder) removeRepositoryFromDisk(image string) error {
+func (b *Builder) removeFromRegistry(ctx context.Context, image string) error {
+	repo, tag, err := parseImage(image)
+	if err != nil {
+		return err
+	}
+
+	registryURL := "http://" + b.cfg.DockerRegistryPath
+
+	digest, err := b.getManifestDigest(ctx, registryURL, repo, tag)
+	if err != nil {
+		return fmt.Errorf("failed to get digest: %w", err)
+	}
+
+	if err := b.deleteManifest(ctx, registryURL, repo, digest); err != nil {
+		return fmt.Errorf("failed to delete manifest: %w", err)
+	}
+
+	log.Printf("Successfully removed image [%s:%s] by digest [%s]", repo, tag, digest)
+	return nil
+}
+
+func parseImage(image string) (repo, tag string, err error) {
 	firstSlash := strings.Index(image, "/")
 	if firstSlash == -1 {
-		return fmt.Errorf("invalid image format: %s", image)
-	}
-	rest := image[firstSlash+1:] // mini-faas/echotestdelete:617b33454569
-
-	lastColon := strings.LastIndex(rest, ":")
-	var repoPath string
-	if lastColon == -1 {
-		repoPath = rest
-	} else {
-		repoPath = rest[:lastColon] // mini-faas/echotestdelete
+		return "", "", fmt.Errorf("invalid image format: %s", image)
 	}
 
-	baseRegistryPath := "./local/registry-data/docker/registry/v2/repositories"
+	repoWithTag := image[firstSlash+1:]
+	lastColon := strings.LastIndex(repoWithTag, ":")
 
-	fullPath := filepath.Join(baseRegistryPath, repoPath)
-
-	log.Printf("Registry Hard Cleanup: Removing repository folder: %s", fullPath)
-
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		log.Printf("Repository folder does not exist, skipping: %s", fullPath)
-		return nil
+	repo = repoWithTag
+	tag = "latest"
+	if lastColon != -1 {
+		repo = repoWithTag[:lastColon]
+		tag = repoWithTag[lastColon+1:]
 	}
-	err := os.RemoveAll(fullPath)
+	return repo, tag, nil
+}
+
+func (b *Builder) getManifestDigest(ctx context.Context, registryURL, repo, tag string) (string, error) {
+	manifestURL := fmt.Sprintf("%s/v2/%s/manifests/%s", registryURL, repo, tag)
+
+	req, err := http.NewRequestWithContext(ctx, "HEAD", manifestURL, nil)
 	if err != nil {
-		return fmt.Errorf("failed to physically remove repository: %w", err)
+		return "", err
 	}
 
-	log.Printf("Successfully wiped [%s] from registry disk", repoPath)
+	req.Header.Set("Accept", strings.Join([]string{
+		"application/vnd.oci.image.index.v1+json",
+		"application/vnd.docker.distribution.manifest.v2+json",
+		"application/vnd.oci.image.manifest.v1+json",
+		"application/vnd.docker.distribution.manifest.list.v2+json",
+	}, ", "))
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("status %d", resp.StatusCode)
+	}
+
+	digest := resp.Header.Get("Docker-Content-Digest")
+	if digest == "" {
+		return "", fmt.Errorf("digest header missing")
+	}
+
+	return digest, nil
+}
+
+func (b *Builder) deleteManifest(ctx context.Context, registryURL, repo, digest string) error {
+	deleteURL := fmt.Sprintf("%s/v2/%s/manifests/%s", registryURL, repo, digest)
+
+	delReq, err := http.NewRequestWithContext(ctx, "DELETE", deleteURL, nil)
+	if err != nil {
+		return err
+	}
+
+	delResp, err := http.DefaultClient.Do(delReq)
+	if err != nil {
+		return err
+	}
+	defer delResp.Body.Close()
+
+	if delResp.StatusCode != http.StatusAccepted && delResp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("status %d", delResp.StatusCode)
+	}
+
 	return nil
 }
