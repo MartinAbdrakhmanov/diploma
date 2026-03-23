@@ -13,17 +13,17 @@ import (
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
-const (
-	containerdPath = "/run/containerd/containerd.sock"
-	baseURL        = "http://localhost:8080" //???
-)
-
 func (c *Container) GetBuilderSvc(ctx context.Context) (*builder.Builder, error) {
 	if c.builderSvc != nil {
 		return c.builderSvc, nil
 	}
 
-	builder := builder.New()
+	cfg := builder.Config{
+		WasmStoreDir:       c.cfg.Wasm.StoreDir,
+		DockerRegistryPath: c.cfg.Docker.RegistryPath,
+	}
+
+	builder := builder.New(cfg)
 
 	c.builderSvc = builder
 
@@ -35,7 +35,7 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 		return c.invokerSvc, nil
 	}
 
-	client, err := containerd.New(containerdPath)
+	client, err := containerd.New(c.cfg.ContainerdSockPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "GetInvokerSvc containerd.New err")
 	}
@@ -102,7 +102,7 @@ func (c *Container) GetApiGateway(ctx context.Context) (*apigateway.Gateway, err
 		return nil, errors.Wrap(err, "GetApiGateway GetInvokerSvc err")
 	}
 
-	apiGW := apigateway.New(functionRegistry, invoker, baseURL)
+	apiGW := apigateway.New(functionRegistry, invoker, c.cfg.ApiGatewayBaseUrl)
 	c.apiGW = apiGW
 
 	return c.apiGW, nil

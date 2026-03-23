@@ -7,11 +7,19 @@ import (
 	"github.com/go-faster/errors"
 )
 
-type Builder struct {
+type Config struct {
+	DockerRegistryPath string
+	WasmStoreDir       string
 }
 
-func New() *Builder {
-	return &Builder{}
+type Builder struct {
+	cfg Config
+}
+
+func New(cfg Config) *Builder {
+	return &Builder{
+		cfg: cfg,
+	}
 }
 
 func (b *Builder) Build(ctx context.Context, entry ds.Entry) (ds.Function, error) {

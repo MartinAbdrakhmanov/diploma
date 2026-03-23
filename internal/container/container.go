@@ -12,6 +12,7 @@ import (
 type Container struct {
 	dbManager *storage.Client
 	closers   []func()
+	cfg       *config
 
 	repo *repository.Repository
 
@@ -21,10 +22,15 @@ type Container struct {
 	apiGW               *apigateway.Gateway
 }
 
-func New(closers []func()) *Container {
+func New(closers []func()) (*Container, error) {
+	cfg, err := NewConfig()
+	if err != nil {
+		return nil, err
+	}
 	return &Container{
 		closers: closers,
-	}
+		cfg:     cfg,
+	}, nil
 }
 
 func (c *Container) Close() {

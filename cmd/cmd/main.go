@@ -30,7 +30,10 @@ func main() {
 	}()
 
 	closers := make([]func(), 0, 2)
-	cont := container.New(closers)
+	cont, err := container.New(closers)
+	if err != nil {
+		log.Fatalf("err while container init, %v", err)
+	}
 	defer func() {
 		cont.Close()
 		log.Println("All closers finished")

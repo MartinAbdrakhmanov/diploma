@@ -123,7 +123,6 @@ func (i *Invoker) invokeDocker(
 	return stdout.Bytes(), stderr.Bytes(), execErr, execLog
 }
 
-// wip
 func collectMetrics(ctx context.Context, task containerd.Task, execLog *ds.ExecLog) {
 	metrics, err := task.Metrics(ctx)
 	if err != nil {
@@ -137,14 +136,14 @@ func collectMetrics(ctx context.Context, task containerd.Task, execLog *ds.ExecL
 	}
 
 	switch m := data.(type) {
-	case *stats.Metrics: // Для Cgroups v1
+	case *stats.Metrics: // Cgroups v1
 		if m.CPU != nil && m.CPU.Usage != nil {
 			execLog.CPUTimeMs = m.CPU.Usage.Total / 1000000
 		}
 		if m.Memory != nil && m.Memory.Usage != nil {
 			execLog.MaxMemoryBytes = m.Memory.Usage.Usage
 		}
-	case *statsv2.Metrics: // Для Cgroups v2
+	case *statsv2.Metrics: // Cgroups v2
 		if m.CPU != nil {
 			execLog.CPUTimeMs = m.CPU.UsageUsec / 1000
 		}

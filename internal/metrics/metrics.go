@@ -17,7 +17,7 @@ var (
 		prometheus.HistogramOpts{
 			Name:    "faas_function_duration_ms",
 			Help:    "Duration of function execution in milliseconds",
-			Buckets: []float64{10, 50, 100, 500, 1000, 5000}, // TODO change
+			Buckets: []float64{10, 50, 100, 500, 1000, 5000},
 		},
 		[]string{"function_id", "function_name", "user_id", "runtime"},
 	)
