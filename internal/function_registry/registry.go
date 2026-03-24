@@ -9,7 +9,7 @@ import (
 
 type repository interface {
 	SaveFunction(ctx context.Context, function ds.Function) (id string, err error)
-	GetFunction(ctx context.Context, userID, id string) (function ds.Function, err error)
+	FunctionInfo(ctx context.Context, userID, id string) (function ds.Function, err error)
 	DeleteFunction(ctx context.Context, userID, id string) error
 	FunctionStats(ctx context.Context, userID, functionID string) (ds.FunctionStats, error)
 }
@@ -46,13 +46,13 @@ func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err
 }
 
 func (r *Registry) Get(ctx context.Context, userID, id string) (ds.Function, error) {
-	return r.repo.GetFunction(ctx, userID, id)
+	return r.repo.FunctionInfo(ctx, userID, id)
 }
 
 // can corrupt data, fine for now
 func (r *Registry) Delete(ctx context.Context, userID, id string) error {
 
-	fn, err := r.repo.GetFunction(ctx, userID, id)
+	fn, err := r.repo.FunctionInfo(ctx, userID, id)
 	if err != nil {
 		return errors.Wrapf(err, "err while getting function with id %v", id)
 	}

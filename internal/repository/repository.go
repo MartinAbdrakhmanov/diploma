@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/MartinAbdrakhmanov/diploma/pkg/storage"
@@ -46,7 +48,8 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
 
 	return id, nil
 }
-func (r *Repository) GetFunction(ctx context.Context, userID, id string) (function ds.Function, err error) {
+
+func (r *Repository) FunctionInfo(ctx context.Context, userID, id string) (function ds.Function, err error) {
 	query := `
 	SELECT id, user_id, "name", runtime, wasm_path, "image", "timeout", max_memory
 	FROM functions
@@ -129,4 +132,48 @@ func (r *Repository) FunctionStats(ctx context.Context, userID, functionID strin
 	)
 
 	return stats, err
+}
+
+func (r *Repository) UpdateFunction(ctx context.Context, functionID string) error {
+	query := `
+	UPDATE functions 
+	SET last_called_at = NOW() 
+	WHERE id = $1`
+
+	_, err := r.db.Write(ctx).Exec(ctx, query, functionID)
+
+	return err
+}
+
+func (r *Repository) FunctionLastCalledAt(ctx context.Context, functionID string) (time.Time, error) {
+	query := `
+	SELECT last_called_at
+	FROM functions
+	WHERE id = $1
+	`
+	var lastCalledAt time.Time
+	err := pgxscan.Get(ctx, r.db.Read(ctx), &lastCalledAt, query, functionID)
+
+	if err != nil {
+		return lastCalledAt, err
+	}
+
+	return lastCalledAt, nil
+}
+
+func (r *Repository) GetExpiredFunctions(ctx context.Context, retentionInterval time.Duration) ([]ds.Function, error) {
+	var functions []ds.Function
+
+	query := `
+		SELECT id, user_id, "name", runtime, wasm_path, "image"
+		FROM functions
+		WHERE last_used_at < NOW() - $1::interval
+	`
+	err := pgxscan.Select(ctx, r.db.Read(ctx), &functions, query, retentionInterval.String())
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch expired functions: %w", err)
+	}
+
+	return functions, nil
 }

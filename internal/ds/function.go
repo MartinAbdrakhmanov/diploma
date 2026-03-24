@@ -4,6 +4,9 @@ import "time"
 
 var (
 	DefaultTimeout = 2 * time.Second
+
+	CleanupInterval   = 24 * time.Hour
+	RetentionInterval = 365 * 24 * time.Hour
 )
 
 const (

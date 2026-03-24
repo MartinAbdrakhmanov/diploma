@@ -13,6 +13,7 @@ import (
 
 type repository interface {
 	SaveLog(ctx context.Context, log ds.ExecLog) error
+	UpdateFunction(ctx context.Context, functionID string) error
 }
 
 type Invoker struct {
@@ -54,6 +55,9 @@ func (i *Invoker) Invoke(
 	if execLog != nil {
 		if err := i.repo.SaveLog(ctx, *execLog); err != nil {
 			log.Printf("error while saving log for fn id %s, %v", execLog.FunctionID, err)
+		}
+		if err := i.repo.UpdateFunction(ctx, execLog.FunctionID); err != nil {
+			log.Printf("error while updating function %v: %v", execLog.FunctionID, err)
 		}
 		metrics.FunctionDurationObserve(fn, float64(execLog.DurationMs))
 		metrics.FunctionInvocationInc(fn, execLog.Status)

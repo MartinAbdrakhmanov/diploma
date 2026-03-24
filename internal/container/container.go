@@ -3,6 +3,7 @@ package container
 import (
 	apigateway "github.com/MartinAbdrakhmanov/diploma/internal/api_gateway"
 	"github.com/MartinAbdrakhmanov/diploma/internal/builder"
+	"github.com/MartinAbdrakhmanov/diploma/internal/cleaner"
 	functionregistry "github.com/MartinAbdrakhmanov/diploma/internal/function_registry"
 	"github.com/MartinAbdrakhmanov/diploma/internal/invoker"
 	"github.com/MartinAbdrakhmanov/diploma/internal/repository"
@@ -20,6 +21,7 @@ type Container struct {
 	invokerSvc          *invoker.Invoker
 	functionRegistrySvc *functionregistry.Registry
 	apiGW               *apigateway.Gateway
+	cleaner             *cleaner.Cleaner
 }
 
 func New(closers []func()) (*Container, error) {

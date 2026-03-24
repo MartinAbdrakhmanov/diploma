@@ -6,6 +6,8 @@ import (
 
 	apigateway "github.com/MartinAbdrakhmanov/diploma/internal/api_gateway"
 	"github.com/MartinAbdrakhmanov/diploma/internal/builder"
+	"github.com/MartinAbdrakhmanov/diploma/internal/cleaner"
+	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	functionregistry "github.com/MartinAbdrakhmanov/diploma/internal/function_registry"
 	"github.com/MartinAbdrakhmanov/diploma/internal/invoker"
 	"github.com/containerd/containerd"
@@ -57,7 +59,7 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 
 	repo, err := c.GetRepo(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetFunctionRegistry GetRepo err")
+		return nil, errors.Wrap(err, "FunctionInfoRegistry GetRepo err")
 	}
 
 	invoker := invoker.New(client, r, repo)
@@ -66,19 +68,19 @@ func (c *Container) GetInvokerSvc(ctx context.Context) (*invoker.Invoker, error)
 	return c.invokerSvc, nil
 }
 
-func (c *Container) GetFunctionRegistry(ctx context.Context) (*functionregistry.Registry, error) {
+func (c *Container) FunctionInfoRegistry(ctx context.Context) (*functionregistry.Registry, error) {
 	if c.functionRegistrySvc != nil {
 		return c.functionRegistrySvc, nil
 	}
 
 	repo, err := c.GetRepo(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetFunctionRegistry GetRepo err")
+		return nil, errors.Wrap(err, "FunctionInfoRegistry GetRepo err")
 	}
 
 	builder, err := c.GetBuilderSvc(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetFunctionRegistry GetBuilderSvc err")
+		return nil, errors.Wrap(err, "FunctionInfoRegistry GetBuilderSvc err")
 	}
 
 	functionRegistry := functionregistry.New(repo, builder)
@@ -92,9 +94,9 @@ func (c *Container) GetApiGateway(ctx context.Context) (*apigateway.Gateway, err
 		return c.apiGW, nil
 	}
 
-	functionRegistry, err := c.GetFunctionRegistry(ctx)
+	functionRegistry, err := c.FunctionInfoRegistry(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "GetApiGateway GetFunctionRegistry err")
+		return nil, errors.Wrap(err, "GetApiGateway FunctionInfoRegistry err")
 	}
 
 	invoker, err := c.GetInvokerSvc(ctx)
@@ -106,4 +108,25 @@ func (c *Container) GetApiGateway(ctx context.Context) (*apigateway.Gateway, err
 	c.apiGW = apiGW
 
 	return c.apiGW, nil
+}
+
+func (c *Container) Cleaner(ctx context.Context) (*cleaner.Cleaner, error) {
+	if c.cleaner != nil {
+		return c.cleaner, nil
+	}
+
+	repo, err := c.GetRepo(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "FunctionInfoRegistry GetRepo err")
+	}
+
+	cfg := cleaner.Config{
+		WasmCacheDir:       ds.WasmCacheDir,
+		DockerRegistryPath: c.cfg.Docker.RegistryPath,
+	}
+
+	cleaner := cleaner.New(repo, cfg, ds.CleanupInterval, ds.RetentionInterval)
+	c.cleaner = cleaner
+
+	return c.cleaner, nil
 }
