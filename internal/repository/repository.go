@@ -177,3 +177,17 @@ func (r *Repository) GetExpiredFunctions(ctx context.Context, retentionInterval 
 
 	return functions, nil
 }
+
+func (r *Repository) UserFunctions(ctx context.Context, userID string) ([]ds.Function, error) {
+	var functions []ds.Function
+	query := `
+	SELECT id, name, runtime FROM functions WHERE user_id = $1
+	`
+
+	err := pgxscan.Select(ctx, r.db.Read(ctx), &functions, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user functions: %w", err)
+	}
+
+	return functions, nil
+}

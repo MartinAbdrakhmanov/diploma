@@ -12,6 +12,7 @@ type repository interface {
 	FunctionInfo(ctx context.Context, userID, id string) (function ds.Function, err error)
 	DeleteFunction(ctx context.Context, userID, id string) error
 	FunctionStats(ctx context.Context, userID, functionID string) (ds.FunctionStats, error)
+	UserFunctions(ctx context.Context, userID string) ([]ds.Function, error)
 }
 
 type builder interface {
@@ -78,4 +79,12 @@ func (r *Registry) FunctionStats(ctx context.Context, userID, id string) (ds.Fun
 		return ds.FunctionStats{}, errors.Wrapf(err, "err while fetching stats for function %v", id)
 	}
 	return stats, nil
+}
+
+func (r *Registry) List(ctx context.Context, userID string) ([]ds.Function, error) {
+	funcInfo, err := r.repo.UserFunctions(ctx, userID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "err while fetching functions for user %v", userID)
+	}
+	return funcInfo, nil
 }

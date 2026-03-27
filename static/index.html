@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mini-FaaS Dashboard - test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 0 20px;
+            color: #212529;
+            background: #f8f9fa;
+        }
+
+        section {
+            background: white;
+            padding: 25px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+            border: 1px solid #dee2e6;
+        }
+
+        h1 {
+            font-weight: 300;
+            color: #495057;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            margin-top: 0;
+            color: #343a40;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0069d9;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.danger {
+            background: #dc3545;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.85rem;
+        }
+
+        table th,
+        table td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table th {
+            background: #f1f3f5;
+        }
+
+        .file-list {
+            margin-top: 5px;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+
+        .output-area {
+            background: #212529;
+            color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            min-height: 50px;
+        }
+
+        .nav-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .grafana-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid #007bff;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+
+        .grafana-link:hover {
+            background: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Mini-FaaS Control Panel</h1>
+
+    <div class="nav-bar">
+        <label>User ID:</label>
+        <input type="text" id="userId" value="2497909d-4d01-4c74-bf97-5cd97e45a3fa" style="width: 320px;"
+            onchange="updateGrafanaLink()">
+        <a id="grafanaBtn" href="#" target="_blank" class="grafana-link">Open Grafana Dashboard</a>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <section>
+            <h2>Регистрация функции</h2>
+            <div class="form-group">
+                <label>Название функции:</label>
+                <input type="text" id="funcName" placeholder="example-function">
+            </div>
+            <div class="form-group">
+                <label>Среда выполнения (Runtime):</label>
+                <select id="runtime">
+                    <option value="docker">Docker</option>
+                    <option value="wasm">WebAssembly</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Исходные файлы:</label>
+                <input type="file" id="funcFiles" multiple onchange="displayFiles()">
+                <div id="selectedFiles" class="file-list"></div>
+            </div>
+            <button onclick="registerFunction()">Развернуть функцию</button>
+        </section>
+
+        <section>
+            <h2>Вызов и управление</h2>
+            <div class="form-group">
+                <label>Function ID (UUID):</label>
+                <input type="text" id="targetId">
+            </div>
+            <div class="form-group">
+                <label>Входные данные (SDK Request):</label>
+                <textarea id="invokeInput" rows="6">{
+  "method": "POST",
+  "path": "/",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "message": "hello world"
+  }
+}</textarea>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="invokeFunction()">Вызвать</button>
+                <button class="secondary" onclick="getStats()">Метрики</button>
+                <button class="danger" onclick="deleteFunction()">Удалить</button>
+            </div>
+        </section>
+    </div>
+
+    <section>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Список функций пользователя</h2>
+            <button class="secondary" onclick="listFunctions()">Обновить список</button>
+        </div>
+        <table id="functionsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Runtime</th>
+                    <th>Действие</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Результат выполнения</h2>
+        <div id="output" class="output-area">Ожидание действий...</div>
+    </section>
+
+    <script>
+        const API_BASE = window.location.origin.replace("/ui", "");
+
+        function updateGrafanaLink() {
+            const uid = document.getElementById('userId').value;
+            const baseUrl = "http://localhost:3000/d/adkks6t/minifaas";
+            const params = `?orgId=1&from=now-30m&to=now&timezone=browser&var-user_id=${uid}&var-function=$__all`;
+            document.getElementById('grafanaBtn').href = baseUrl + params;
+        }
+
+        function displayFiles() {
+            const input = document.getElementById('funcFiles');
+            const list = document.getElementById('selectedFiles');
+            const names = Array.from(input.files).map(f => f.name);
+            list.textContent = names.length > 0 ? "Выбрано: " + names.join(", ") : "";
+        }
+
+        async function listFunctions() {
+            const userId = document.getElementById('userId').value;
+            try {
+                const res = await fetch(`${API_BASE}/functions`, {
+                    headers: { 'X-User-ID': userId }
+                });
+                const functions = await res.json();
+                const tbody = document.querySelector("#functionsTable tbody");
+                tbody.innerHTML = "";
+
+                functions.forEach(fn => {
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td><small>${fn.id}</small></td>
+                        <td><strong>${fn.name}</strong></td>
+                        <td>${fn.runtime}</td>
+                        <td><button style="padding: 2px 8px; font-size: 11px;" onclick="selectFunction('${fn.id}')">Выбрать</button></td>
+                    `;
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        function selectFunction(id) {
+            document.getElementById('targetId').value = id;
+            window.scrollTo(0, 0);
+        }
+
+        async function registerFunction() {
+            const userId = document.getElementById('userId').value;
+            const formData = new FormData();
+            formData.append("name", document.getElementById('funcName').value);
+            formData.append("runtime", document.getElementById('runtime').value);
+
+            const files = document.getElementById('funcFiles').files;
+            for (let i = 0; i < files.length; i++) {
+                formData.append("files", files[i]);
+            }
+
+            const res = await fetch(`${API_BASE}/functions`, {
+                method: 'POST',
+                headers: { 'X-User-ID': userId },
+                body: formData
+            });
+            const data = await res.json();
+            document.getElementById('targetId').value = data.id;
+            showOutput(data);
+            listFunctions();
+        }
+
+        async function invokeFunction() {
+            const userId = document.getElementById('userId').value;
+            const id = document.getElementById('targetId').value;
+            const body = document.getElementById('invokeInput').value;
+
+            try {
+                const res = await fetch(`${API_BASE}/functions/${id}/invoke`, {
+                    method: 'POST',
+                    headers: {
+                        'X-User-ID': userId,
+                        'Content-Type': 'application/json'
+                    },
+                    body: body
+                });
+                const data = await res.text();
+                showOutput(data);
+            } catch (err) { showOutput("Error: " + err); }
+        }
+
+        async function getStats() {
+            const userId = document.getElementById('userId').value;
+            const id = document.getElementById('targetId').value;
+            const res = await fetch(`${API_BASE}/functions/${id}/stats`, {
+                headers: { 'X-User-ID': userId }
+            });
+            showOutput(await res.json());
+        }
+
+        async function deleteFunction() {
+            const id = document.getElementById('targetId').value;
+            const userId = document.getElementById('userId').value;
+            if (!confirm("Удалить функцию?")) return;
+            const res = await fetch(`${API_BASE}/functions/${id}/delete`, {
+                method: 'POST',
+                headers: { 'X-User-ID': userId }
+            });
+            showOutput(res.status === 204 ? "Удалено успешно" : "Ошибка: " + res.status);
+            listFunctions();
+        }
+
+        function showOutput(data) {
+            const out = document.getElementById('output');
+            out.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+        }
+
+        // Init
+        updateGrafanaLink();
+    </script>
+</body>
+
+</html>

@@ -18,6 +18,7 @@ type functionRegistry interface {
 	Get(ctx context.Context, userID, id string) (ds.Function, error)
 	Delete(ctx context.Context, userID, id string) error
 	FunctionStats(ctx context.Context, userID, id string) (ds.FunctionStats, error)
+	List(ctx context.Context, userID string) ([]ds.Function, error)
 }
 
 type invoker interface {
@@ -188,4 +189,23 @@ func (g *Gateway) HandleStats(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
+}
+
+// GET /functions
+func (g *Gateway) HandleList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "missing user", http.StatusUnauthorized)
+		return
+	}
+
+	functions, err := g.registry.List(ctx, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(functions)
 }

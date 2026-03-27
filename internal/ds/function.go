@@ -16,11 +16,11 @@ const (
 )
 
 type Function struct {
-	ID        string `db:"id"`
+	ID        string `db:"id" json:"id"`
 	UserId    string `db:"user_id"`
-	Name      string `db:"name"`
+	Name      string `db:"name"  json:"name"`
 	Image     string `db:"image"`
-	Runtime   string `db:"runtime"`
+	Runtime   string `db:"runtime" json:"runtime"`
 	WasmPath  string `db:"wasm_path"`
 	Timeout   int    `db:"timeout"`
 	MaxMemory int64  `db:"max_memory"`

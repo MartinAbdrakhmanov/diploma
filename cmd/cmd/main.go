@@ -59,6 +59,19 @@ func main() {
 	fmt.Println("Shutdown complete")
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-User-ID")
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func runGW(ctx context.Context, cont *container.Container) error {
 	gw, err := cont.GetApiGateway(ctx)
 	if err != nil {
@@ -66,17 +79,21 @@ func runGW(ctx context.Context, cont *container.Container) error {
 	}
 
 	r := mux.NewRouter()
+
+	r.PathPrefix("/ui/").Handler(http.StripPrefix("/ui/", http.FileServer(http.Dir("./static"))))
+
 	r.HandleFunc("/functions", gw.HandleRegister).Methods("POST")
 	r.HandleFunc("/functions/{id}/invoke", gw.HandleInvoke).Methods("POST")
 	r.HandleFunc("/functions/{id}/delete", gw.HandleDelete).Methods("POST")
 	r.HandleFunc("/functions/{id}/stats", gw.HandleStats).Methods("GET")
+	r.HandleFunc("/functions", gw.HandleList).Methods("GET")
 
 	metrics.Init()
 	r.Handle("/metrics", promhttp.Handler()).Methods("GET")
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: r,
+		Handler: corsMiddleware(r),
 	}
 
 	go func() {
