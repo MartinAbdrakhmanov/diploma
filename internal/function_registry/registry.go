@@ -9,7 +9,7 @@ import (
 
 type repository interface {
 	SaveFunction(ctx context.Context, function ds.Function) (id string, err error)
-	FunctionInfo(ctx context.Context, userID, id string) (function ds.Function, err error)
+	FunctionInfo(ctx context.Context, userID, id string) (function *ds.Function, err error)
 	DeleteFunction(ctx context.Context, userID, id string) error
 	FunctionStats(ctx context.Context, userID, functionID string) (ds.FunctionStats, error)
 	UserFunctions(ctx context.Context, userID string) ([]ds.Function, error)
@@ -46,7 +46,7 @@ func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err
 	return id, nil
 }
 
-func (r *Registry) Get(ctx context.Context, userID, id string) (ds.Function, error) {
+func (r *Registry) Get(ctx context.Context, userID, id string) (*ds.Function, error) {
 	return r.repo.FunctionInfo(ctx, userID, id)
 }
 
@@ -58,11 +58,11 @@ func (r *Registry) Delete(ctx context.Context, userID, id string) error {
 		return errors.Wrapf(err, "err while getting function with id %v", id)
 	}
 
-	if fn.ID == "" {
+	if fn == nil {
 		return nil
 	}
 
-	if err := r.builder.RemoveFunction(ctx, fn); err != nil {
+	if err := r.builder.RemoveFunction(ctx, *fn); err != nil {
 		return errors.Wrapf(err, "err while removing artefacts for function id %v", id)
 	}
 

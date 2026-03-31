@@ -49,19 +49,19 @@ func (r *Repository) SaveFunction(ctx context.Context, function ds.Function) (id
 	return id, nil
 }
 
-func (r *Repository) FunctionInfo(ctx context.Context, userID, id string) (function ds.Function, err error) {
+func (r *Repository) FunctionInfo(ctx context.Context, userID, id string) (function *ds.Function, err error) {
 	query := `
 	SELECT id, user_id, "name", runtime, wasm_path, "image", "timeout", max_memory
 	FROM functions
 	WHERE user_id = $1 AND id = $2
 	`
-	err = pgxscan.Get(ctx, r.db.Read(ctx), &function, query, userID, id)
+	err = pgxscan.Get(ctx, r.db.Read(ctx), function, query, userID, id)
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ds.Function{}, nil
+			return nil, nil
 		}
-		return ds.Function{}, err
+		return nil, err
 	}
 
 	return function, nil

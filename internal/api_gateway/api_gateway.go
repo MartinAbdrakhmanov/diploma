@@ -15,7 +15,7 @@ import (
 
 type functionRegistry interface {
 	Register(ctx context.Context, entry ds.Entry) (id string, err error)
-	Get(ctx context.Context, userID, id string) (ds.Function, error)
+	Get(ctx context.Context, userID, id string) (*ds.Function, error)
 	Delete(ctx context.Context, userID, id string) error
 	FunctionStats(ctx context.Context, userID, id string) (ds.FunctionStats, error)
 	List(ctx context.Context, userID string) ([]ds.Function, error)
@@ -119,7 +119,7 @@ func (g *Gateway) HandleInvoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if fn.ID == "" {
+	if fn == nil {
 		http.Error(w, "function not found", http.StatusNotFound)
 		return
 	}
@@ -132,7 +132,7 @@ func (g *Gateway) HandleInvoke(w http.ResponseWriter, r *http.Request) {
 
 	stdout, stderr, err := g.invoker.Invoke(
 		ctx,
-		fn,
+		*fn,
 		input,
 		time.Duration(fn.Timeout)*time.Second,
 	)
