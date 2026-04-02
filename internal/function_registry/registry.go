@@ -17,18 +17,23 @@ type repository interface {
 
 type builder interface {
 	Build(ctx context.Context, entry ds.Entry) (ds.Function, error)
+}
+
+type cleaner interface {
 	RemoveFunction(ctx context.Context, fn ds.Function) error
 }
 
 type Registry struct {
 	repo    repository
 	builder builder
+	cleaner cleaner
 }
 
-func New(repo repository, builder builder) *Registry {
+func New(repo repository, builder builder, cleaner cleaner) *Registry {
 	return &Registry{
 		repo:    repo,
 		builder: builder,
+		cleaner: cleaner,
 	}
 }
 
@@ -62,7 +67,7 @@ func (r *Registry) Delete(ctx context.Context, userID, id string) error {
 		return nil
 	}
 
-	if err := r.builder.RemoveFunction(ctx, *fn); err != nil {
+	if err := r.cleaner.RemoveFunction(ctx, *fn); err != nil {
 		return errors.Wrapf(err, "err while removing artefacts for function id %v", id)
 	}
 

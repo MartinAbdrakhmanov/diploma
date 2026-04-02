@@ -111,7 +111,7 @@ func (r *Repository) FunctionStats(ctx context.Context, userID, functionID strin
         FROM execution_logs l
         JOIN functions f ON l.function_id = f.id
         WHERE f.user_id = $1 AND f.id = $2
-        ORDER BY l.created_at DESC
+        ORDER BY l.started_at DESC
         LIMIT 100
     )
     SELECT 

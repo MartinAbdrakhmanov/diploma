@@ -83,7 +83,12 @@ func (c *Container) FunctionInfoRegistry(ctx context.Context) (*functionregistry
 		return nil, errors.Wrap(err, "FunctionInfoRegistry GetBuilderSvc err")
 	}
 
-	functionRegistry := functionregistry.New(repo, builder)
+	cleaner, err := c.GetCleaner(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "FunctionInfoRegistry GetCleaner err")
+	}
+
+	functionRegistry := functionregistry.New(repo, builder, cleaner)
 	c.functionRegistrySvc = functionRegistry
 
 	return c.functionRegistrySvc, nil
@@ -110,7 +115,7 @@ func (c *Container) GetApiGateway(ctx context.Context) (*apigateway.Gateway, err
 	return c.apiGW, nil
 }
 
-func (c *Container) Cleaner(ctx context.Context) (*cleaner.Cleaner, error) {
+func (c *Container) GetCleaner(ctx context.Context) (*cleaner.Cleaner, error) {
 	if c.cleaner != nil {
 		return c.cleaner, nil
 	}

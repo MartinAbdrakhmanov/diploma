@@ -21,7 +21,7 @@ func main() {
 		log.Println("All closers finished")
 	}()
 
-	cleaner, err := cont.Cleaner(ctx)
+	cleaner, err := cont.GetCleaner(ctx)
 	if err != nil {
 		log.Fatalf("err while cleaner init, %v", err)
 	}
