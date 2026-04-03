@@ -16,6 +16,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/typeurl/v2"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 func (i *Invoker) invokeDocker(
@@ -55,6 +56,15 @@ func (i *Invoker) invokeDocker(
 		containerd.WithNewSnapshot(snapshotID, image),
 		containerd.WithNewSpec(
 			oci.WithImageConfig(image),
+			oci.WithHostNamespace(specs.NetworkNamespace),
+			oci.WithMounts([]specs.Mount{
+				{
+					Source:      "/etc/resolv.conf",
+					Destination: "/etc/resolv.conf",
+					Type:        "bind",
+					Options:     []string{"ro", "rbind"},
+				},
+			}),
 			// oci.WithProcessArgs(fn.Args...),
 		),
 	)

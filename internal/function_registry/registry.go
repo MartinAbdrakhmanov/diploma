@@ -2,6 +2,7 @@ package functionregistry
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/MartinAbdrakhmanov/diploma/internal/ds"
 	"github.com/go-faster/errors"
@@ -52,7 +53,12 @@ func (r *Registry) Register(ctx context.Context, entry ds.Entry) (id string, err
 }
 
 func (r *Registry) Get(ctx context.Context, userID, id string) (*ds.Function, error) {
-	return r.repo.FunctionInfo(ctx, userID, id)
+	fn, err := r.repo.FunctionInfo(ctx, userID, id)
+	if err != nil {
+		return nil, fmt.Errorf("error while getting function info for id %s, %w", id, err)
+	}
+
+	return fn, nil
 }
 
 // can corrupt data, fine for now

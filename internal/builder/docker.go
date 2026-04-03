@@ -12,7 +12,7 @@ import (
 	"sort"
 )
 
-const defaultGoDockerfile = `FROM golang:1.25-alpine AS build
+const defaultGoDockerfile = `FROM golang:1.26-alpine AS build
 WORKDIR /app
 COPY . .
 RUN go mod download && go build -o handler main.go

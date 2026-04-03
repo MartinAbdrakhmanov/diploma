@@ -3,12 +3,14 @@ module github.com/MartinAbdrakhmanov/diploma
 go 1.25.5
 
 require (
+	github.com/MartinAbdrakhmanov/go-sdk v0.1.0
 	github.com/containerd/cgroups/v3 v3.1.0
 	github.com/containerd/containerd v1.7.30
 	github.com/containerd/typeurl/v2 v2.2.3
 	github.com/georgysavva/scany/v2 v2.1.4
 	github.com/go-faster/errors v0.7.1
 	github.com/gorilla/mux v1.8.1
+	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/lpernett/godotenv v0.0.0-20230527005122-0de1d4c5ef5e
 	github.com/prometheus/client_golang v1.22.0
@@ -41,7 +43,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/ilyakaznacheev/cleanenv v1.5.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
