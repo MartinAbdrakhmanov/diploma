@@ -95,7 +95,6 @@ func (i *Invoker) invokeDocker(
 
 	task.CloseIO(ctx, containerd.WithStdinCloser)
 
-	// TODO ctx with timeout? (or mb it doesnt work)
 	waitC, err := task.Wait(ctx)
 	if err != nil {
 		return nil, nil, err, nil

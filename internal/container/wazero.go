@@ -18,7 +18,10 @@ func (c *Container) NewWasmRuntime(ctx context.Context) (wazero.Runtime, error) 
 		return nil, err
 	}
 
-	config := wazero.NewRuntimeConfig().WithCompilationCache(compCache).WithMemoryLimitPages(c.cfg.Wasm.MaxPages)
+	config := wazero.NewRuntimeConfig().
+		WithCompilationCache(compCache).
+		WithMemoryLimitPages(c.cfg.Wasm.MaxPages).
+		WithCloseOnContextDone(true)
 
 	return wazero.NewRuntimeWithConfig(ctx, config), nil
 }
